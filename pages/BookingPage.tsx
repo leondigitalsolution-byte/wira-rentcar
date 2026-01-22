@@ -1,4 +1,3 @@
-
 import { 
   Search, Plus, Trash2, MessageCircle, AlertTriangle, Calendar, 
   User as UserIcon, Zap, CheckCircle, MapPin, Shield, 
@@ -698,7 +697,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         </div>
                     </section>
                     <div className="pt-6 border-t">
-                        <button type="submit" disabled={!!carError || !selectedCarId} className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest hover:bg-indigo-700 shadow-2xl active:scale-95 flex items-center justify-center gap-3 disabled:opacity-50 disabled:cursor-not-allowed">
+                        <button type="submit" disabled={!!carError || !selectedCarId} className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest hover:bg-indigo-700 shadow-2xl active:scale-95 flex items-center justify-center gap-3">
                             <Plus size={24}/> Simpan Transaksi & Jadwal
                         </button>
                     </div>

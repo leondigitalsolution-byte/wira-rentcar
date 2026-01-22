@@ -73,7 +73,6 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
   useEffect(() => {
     const loadedSettings = getStoredData<AppSettings>('appSettings', DEFAULT_SETTINGS);
     setSettings(loadedSettings);
-    // Removed auto-refresh visibility listener to prevent page flickering/reload on minimize
   }, []);
 
   const handleRefresh = async () => {
@@ -316,21 +315,21 @@ const App = () => {
   return (
     <Router>
       <Routes>
-        <Route path="/login" element={!user ? <LoginPage onLogin={handleLogin} /> : <Navigate to="/" replace />} />
+        <Route path="/login" element={!user ? <LoginPage onLogin={handleLogin} /> : <Navigate to="/" />} />
         
-        <Route path="/" element={user ? <AppLayout user={user} onLogout={handleLogout}><Dashboard /></AppLayout> : <Navigate to="/login" replace />} />
+        <Route path="/" element={user ? <AppLayout user={user} onLogout={handleLogout}><Dashboard /></AppLayout> : <Navigate to="/login" />} />
         
         {/* Protected Routes based on Role */}
         <Route path="/booking" element={
-            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><BookingPage currentUser={user}/></AppLayout> : <Navigate to="/" replace />
+            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><BookingPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
         <Route path="/calculator" element={
-            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><CalculatorPage/></AppLayout> : <Navigate to="/" replace />
+            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><CalculatorPage/></AppLayout> : <Navigate to="/" />
         } />
 
         <Route path="/fleet" element={
-            user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'partner') ? <AppLayout user={user} onLogout={handleLogout}><FleetPage currentUser={user}/></AppLayout> : <Navigate to="/" replace />
+            user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'partner') ? <AppLayout user={user} onLogout={handleLogout}><FleetPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
         <Route path="/tracking" element={
@@ -341,38 +340,38 @@ const App = () => {
                     driverId={user.linkedDriverId}
                     partnerId={user.linkedPartnerId}
                 />
-            </AppLayout> : <Navigate to="/login" replace />
+            </AppLayout> : <Navigate to="/login" />
         } />
         
         <Route path="/partners" element={
-            user ? <AppLayout user={user} onLogout={handleLogout}><PartnersPage currentUser={user}/></AppLayout> : <Navigate to="/" replace />
+            user ? <AppLayout user={user} onLogout={handleLogout}><PartnersPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
         <Route path="/drivers" element={
-            user ? <AppLayout user={user} onLogout={handleLogout}><DriversPage currentUser={user}/></AppLayout> : <Navigate to="/" replace />
+            user ? <AppLayout user={user} onLogout={handleLogout}><DriversPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
         <Route path="/customers" element={
-            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><CustomersPage currentUser={user}/></AppLayout> : <Navigate to="/" replace />
+            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><CustomersPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
         <Route path="/expenses" element={
-            user ? <AppLayout user={user} onLogout={handleLogout}><ExpensesPage isDriverView={user.role === 'driver'} isPartnerView={user.role === 'partner'} /></AppLayout> : <Navigate to="/login" replace />
+            user ? <AppLayout user={user} onLogout={handleLogout}><ExpensesPage isDriverView={user.role === 'driver'} isPartnerView={user.role === 'partner'} /></AppLayout> : <Navigate to="/login" />
         } />
         
         <Route path="/statistics" element={
-            user ? <AppLayout user={user} onLogout={handleLogout}><StatisticsPage /></AppLayout> : <Navigate to="/" replace />
+            user ? <AppLayout user={user} onLogout={handleLogout}><StatisticsPage /></AppLayout> : <Navigate to="/" />
         } />
         
         <Route path="/high-season" element={
-            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><HighSeasonPage currentUser={user}/></AppLayout> : <Navigate to="/" replace />
+            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><HighSeasonPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
         <Route path="/settings" element={
-            user ? <AppLayout user={user} onLogout={handleLogout}><SettingsPage currentUser={user}/></AppLayout> : <Navigate to="/login" replace />
+            user ? <AppLayout user={user} onLogout={handleLogout}><SettingsPage currentUser={user}/></AppLayout> : <Navigate to="/login" />
         } />
         
-        <Route path="*" element={<Navigate to="/" replace />} />
+        <Route path="*" element={<Navigate to="/" />} />
       </Routes>
     </Router>
   );

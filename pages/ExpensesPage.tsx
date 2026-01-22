@@ -45,7 +45,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
     setPartners(getStoredData<Partner[]>('partners', []));
     
     if (isDriverView) setCategory('Reimbursement');
-    if (isPartnerView) setCategory('Setor Investor');
+    // if (isPartnerView) setCategory('Setor Investor'); // Hidden logic
   }, [isDriverView, isPartnerView]);
 
   // Handle incoming navigation state (e.g. "Pay this transaction")
@@ -186,7 +186,8 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
       setEditingId(null);
       setDescription('');
       setAmount('');
-      setCategory(isDriverView ? 'Reimbursement' : isPartnerView ? 'Setor Investor' : 'Operasional');
+      // setCategory(isDriverView ? 'Reimbursement' : isPartnerView ? 'Setor Investor' : 'Operasional');
+      setCategory(isDriverView ? 'Reimbursement' : 'Operasional');
       setStatus('Paid');
       setReceiptImage(null);
       setSelectedPartnerId('');
@@ -272,7 +273,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                     >
                         <option value="All">Semua Kategori</option>
                         <option value="Operasional">Operasional</option>
-                        <option value="Setor Investor">Setor Investor</option>
+                        {/* <option value="Setor Investor">Setor Investor</option> */} {/* Hidden */}
                         <option value="Gaji">Gaji</option>
                         <option value="BBM">BBM</option>
                         <option value="Tol/Parkir">Tol/Parkir</option>
@@ -425,7 +426,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                               ) : (
                                   <>
                                     <option value="Operasional">Operasional Kantor</option>
-                                    <option value="Setor Investor">Setor ke Investor</option>
+                                    {/* <option value="Setor Investor">Setor ke Investor</option> */} {/* Hidden */}
                                     <option value="Gaji">Gaji Driver / Karyawan</option>
                                     <option value="BBM">BBM / Bensin</option>
                                     <option value="Tol/Parkir">Tol & Parkir</option>

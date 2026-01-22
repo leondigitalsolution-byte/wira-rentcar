@@ -203,8 +203,8 @@ const Dashboard = () => {
               ) : isPartner ? (
                   <>
                     <MenuItem to="/fleet" icon={CarIcon} label="Unit Saya" />
-                    <MenuItem to="/partners" icon={Wallet} label="Pendapatan" />
-                    <MenuItem to="/expenses" icon={Receipt} label="Riwayat" />
+                    {/* <MenuItem to="/partners" icon={Wallet} label="Pendapatan" /> Hidden */}
+                    {/* <MenuItem to="/expenses" icon={Receipt} label="Riwayat" /> Hidden */}
                     
                     <MenuItem to="/settings" icon={Settings} label="Akun" />
                   </>
@@ -234,7 +234,8 @@ const Dashboard = () => {
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                       <MenuItem to="/drivers" icon={UserCircle} label="Driver" onClick={() => setIsMoreMenuOpen(false)} />
-                      <MenuItem to="/partners" icon={UserCog} label="Mitra" onClick={() => setIsMoreMenuOpen(false)} />
+                      {/* Hidden Partner Menu */}
+                      {/* <MenuItem to="/partners" icon={UserCog} label="Mitra" onClick={() => setIsMoreMenuOpen(false)} /> */}
                       <MenuItem to="/high-season" icon={CalendarClock} label="Highseason" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/settings" icon={Settings} label="Setting" onClick={() => setIsMoreMenuOpen(false)} />
                   </div>

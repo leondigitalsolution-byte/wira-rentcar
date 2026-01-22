@@ -4,7 +4,7 @@ import { useLocation } from 'react-router-dom';
 import { AppSettings, User, Driver, Partner } from '../types';
 import { getStoredData, setStoredData, DEFAULT_SETTINGS, compressImage } from '../services/dataService';
 import { getUsers, saveUser, deleteUser } from '../services/authService';
-import { FileText, Trash2, List, UserCog, X, MessageCircle, Image as ImageIcon, HelpCircle, Palette, Moon, Sun, ChevronDown, ChevronUp, BookOpen, Link as LinkIcon, Camera, Stamp } from 'lucide-react';
+import { FileText, Trash2, List, UserCog, X, MessageCircle, Image as ImageIcon, HelpCircle, Palette, Moon, Sun, ChevronDown, ChevronUp, BookOpen, Link as LinkIcon, Camera } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
 interface Props {
@@ -133,21 +133,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
              setSettings(prev => ({ ...prev, logoUrl: compressed }));
           } catch(e) {
               alert("Gagal upload logo.");
-          } finally {
-              setIsUploading(false);
-          }
-      }
-  };
-
-  const handleStampUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-          setIsUploading(true);
-          try {
-             const compressed = await compressImage(file);
-             setSettings(prev => ({ ...prev, stampUrl: compressed }));
-          } catch(e) {
-              alert("Gagal upload stempel.");
           } finally {
               setIsUploading(false);
           }
@@ -396,47 +381,21 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
 
           {activeTab === 'general' && isSuperAdmin && (
              <form onSubmit={handleSave} className="space-y-6 animate-fade-in">
-                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 border-b pb-6 dark:border-slate-700">
-                     {/* Logo Upload */}
-                     <div className="flex items-center gap-6">
-                         <div className="w-20 h-20 border rounded-lg p-2 flex items-center justify-center bg-white shadow-sm">
-                             <Logo src={settings.logoUrl} />
-                         </div>
-                         <div>
-                             <label className="block text-sm font-medium mb-2 dark:text-slate-200">Ganti Logo</label>
-                             <input 
-                                 disabled={!isSuperAdmin} 
-                                 type="file" 
-                                 accept="image/*" 
-                                 className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" 
-                                 onChange={handleLogoUpload} 
-                             />
-                         </div>
+                 <div className="flex items-center gap-6 pb-6 border-b dark:border-slate-700">
+                     <div className="w-20 h-20 border rounded-lg p-2 flex items-center justify-center bg-white">
+                         <Logo src={settings.logoUrl} />
                      </div>
-
-                     {/* Stamp Upload */}
-                     <div className="flex items-center gap-6">
-                         <div className="w-20 h-20 border rounded-lg p-2 flex items-center justify-center bg-white shadow-sm overflow-hidden">
-                             {settings.stampUrl ? (
-                                 <img src={settings.stampUrl} className="w-full h-full object-contain opacity-70" alt="Stamp" />
-                             ) : (
-                                 <Stamp className="text-slate-300" size={32} />
-                             )}
-                         </div>
-                         <div>
-                             <label className="block text-sm font-medium mb-2 dark:text-slate-200">Stempel / Cap Perusahaan</label>
-                             <input 
-                                 disabled={!isSuperAdmin} 
-                                 type="file" 
-                                 accept="image/*" 
-                                 className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-purple-50 file:text-purple-700 hover:file:bg-purple-100" 
-                                 onChange={handleStampUpload} 
-                             />
-                             <p className="text-[10px] text-slate-500 mt-1">Format PNG Transparan disarankan.</p>
-                         </div>
+                     <div>
+                         <label className="block text-sm font-medium mb-2 dark:text-slate-200">Ganti Logo (Upload/Kamera)</label>
+                         <input 
+                             disabled={!isSuperAdmin} 
+                             type="file" 
+                             accept="image/*" 
+                             className="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-indigo-50 file:text-indigo-700 hover:file:bg-indigo-100" 
+                             onChange={handleLogoUpload} 
+                         />
+                         {isUploading && <p className="text-xs text-indigo-600 mt-1">Mengupload...</p>}
                      </div>
-                     
-                     {isUploading && <p className="text-xs text-indigo-600 col-span-2 text-center animate-pulse">Mengupload...</p>}
                  </div>
                  
                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -605,7 +564,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                 <select value={role} onChange={e => setRole(e.target.value)} className="w-full border rounded p-2">
                                     <option value="admin">Admin / Staff</option>
                                     <option value="driver">Driver</option>
-                                    <option value="partner">Investor (Mitra)</option>
+                                    {/* <option value="partner">Investor (Mitra)</option> */} {/* Hidden Partner */}
                                     <option value="superadmin">Super Admin</option>
                                 </select>
                             </div>
@@ -628,7 +587,8 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                             )}
 
-                            {role === 'partner' && (
+                            {/* Hidden Partner Link Logic */}
+                            {/* {role === 'partner' && (
                                 <div className="md:col-span-2 bg-purple-50 border border-purple-100 p-3 rounded-lg animate-in fade-in slide-in-from-top-2">
                                     <label className="block text-xs font-bold uppercase text-purple-800 mb-1 flex items-center gap-1">
                                         <LinkIcon size={12}/> Hubungkan dengan Data Investor
@@ -643,7 +603,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                         *User ini hanya akan melihat unit mobil dan laporan keuangan milik Investor yang dipilih.
                                     </p>
                                 </div>
-                            )}
+                            )} */}
 
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Username</label>

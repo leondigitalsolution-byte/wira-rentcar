@@ -84,7 +84,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
       switch(location.pathname) {
           case '/booking': return 'Booking';
           case '/fleet': return 'Armada';
-          case '/partners': return isPartner ? 'Saldo Saya' : 'Investor';
+          // case '/partners': return isPartner ? 'Saldo Saya' : 'Investor'; // Hidden
           case '/drivers': return isDriver ? 'Profil' : 'Driver';
           case '/customers': return 'Pelanggan';
           case '/expenses': return isDriver ? 'Reimbursement' : 'Keuangan';
@@ -145,7 +145,8 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                         <SidebarItem to="/fleet" icon={Car} label="Armada Mobil" />
                         <SidebarItem to="/customers" icon={Users} label="Data Pelanggan" />
                         <SidebarItem to="/drivers" icon={UserCircle} label="Data Driver" />
-                        <SidebarItem to="/partners" icon={UserCog} label="Investor & Rekanan" />
+                        {/* Hidden Partner Menu */}
+                        {/* <SidebarItem to="/partners" icon={UserCog} label="Investor & Rekanan" /> */}
                         <SidebarItem to="/high-season" icon={CalendarClock} label="High Season" />
                     </div>
                 </div>
@@ -179,7 +180,8 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
               </div>
           )}
 
-          {isPartner && (
+          {/* Hidden Partner Menu Block */}
+          {/* {isPartner && (
               <div className="mb-6">
                 <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Investor</h3>
                 <div className="space-y-1">
@@ -189,7 +191,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                     <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
                 </div>
               </div>
-          )}
+          )} */}
         </nav>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-700">
@@ -281,18 +283,9 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                 <BottomNavItem to="/settings" icon={Settings} label="Akun" />
               </>
           ) : (
-              // Partner
+              // Partner Hidden
               <>
                 <BottomNavItem to="/" icon={LayoutDashboard} label="Home" />
-                <BottomNavItem to="/partners" icon={Wallet} label="Saldo" />
-                
-                <div className="relative -top-5 mx-1 flex flex-col items-center justify-center">
-                    <Link to="/" className="flex items-center justify-center w-16 h-16 bg-red-600 rounded-full shadow-lg border-4 border-slate-100 dark:border-slate-800 text-white hover:bg-red-700 transition-transform active:scale-95">
-                        <LayoutDashboard size={28} strokeWidth={2} />
-                    </Link>
-                </div>
-
-                <BottomNavItem to="/expenses" icon={List} label="Riwayat" />
                 <BottomNavItem to="/settings" icon={Settings} label="Akun" />
               </>
           )}
@@ -354,9 +347,10 @@ const App = () => {
             user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'partner') ? <AppLayout user={user} onLogout={handleLogout}><FleetPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
-        <Route path="/partners" element={
+        {/* Hidden Route */}
+        {/* <Route path="/partners" element={
             user ? <AppLayout user={user} onLogout={handleLogout}><PartnersPage currentUser={user}/></AppLayout> : <Navigate to="/" />
-        } />
+        } /> */}
         
         <Route path="/drivers" element={
             user ? <AppLayout user={user} onLogout={handleLogout}><DriversPage currentUser={user}/></AppLayout> : <Navigate to="/" />

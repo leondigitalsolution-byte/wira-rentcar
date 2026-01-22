@@ -295,7 +295,9 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
                                     </select>
                                 </div>
                               </div>
-                              <div>
+                              
+                              {/* Hidden Partner Selection */}
+                              {/* <div>
                                   <label className="block text-sm font-medium text-slate-700">Pemilik Unit (Investor)</label>
                                   <select disabled={isPartnerView} className="w-full border border-slate-300 rounded-lg p-2.5 mt-1 disabled:bg-slate-100" value={partnerId} onChange={e => setPartnerId(e.target.value)}>
                                       <option value="">Milik Perusahaan (Sendiri)</option>
@@ -303,7 +305,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
                                           <option key={p.id} value={p.id}>{p.name} (Bagi: {p.splitPercentage}%)</option>
                                       ))}
                                   </select>
-                              </div>
+                              </div> */}
                           </div>
                       </div>
                       

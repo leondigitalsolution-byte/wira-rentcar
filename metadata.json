@@ -1,0 +1,8 @@
+{
+  "name": "Wira Rent Car",
+  "description": "Sistem Manajemen Rental Mobil Profesional & Terintegrasi",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}

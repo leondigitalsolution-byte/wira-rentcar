@@ -277,7 +277,51 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
     renderTextSection("KETENTUAN PEMBAYARAN:", settings.paymentTerms);
     renderTextSection("SYARAT & KETENTUAN SEWA:", settings.termsAndConditions);
 
-    const finalY = Math.max(currentY + 10, pageHeight - 15);
+    // --- 4. SIGNATURE SECTION ---
+    // Check if we need a new page for signatures
+    if (currentY + 45 > pageHeight - 15) {
+        doc.addPage();
+        currentY = 20;
+    } else {
+        currentY += 5;
+    }
+
+    const sigY = currentY;
+    const colWidth = (pageWidth - (margin * 2)) / 2;
+    
+    // Left Column: Penyewa
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.text("Penyewa,", margin + (colWidth / 2), sigY, { align: 'center' });
+    
+    // Line for Penyewa
+    doc.line(margin + 10, sigY + 25, margin + colWidth - 10, sigY + 25);
+    doc.setFont("helvetica", "bold");
+    doc.text(`(${booking.customerName})`, margin + (colWidth / 2), sigY + 30, { align: 'center' });
+
+    // Right Column: Company
+    const rightColX = margin + colWidth;
+    doc.setFont("helvetica", "normal");
+    doc.text("Hormat Kami,", rightColX + (colWidth / 2), sigY, { align: 'center' });
+
+    // Company Stamp (Overlay)
+    if (settings.stampUrl) {
+        try {
+            // Position stamp centered over the signature line
+            // Adjust dimensions (w: 35, h: 35) and position relative to sigY
+            doc.addImage(settings.stampUrl, 'PNG', rightColX + (colWidth / 2) - 17.5, sigY - 5, 35, 35);
+        } catch (e) {
+            console.error("Failed to add stamp image", e);
+        }
+    }
+
+    // Line for Company
+    doc.line(rightColX + 10, sigY + 25, pageWidth - margin - 10, sigY + 25);
+    doc.setFont("helvetica", "bold");
+    doc.text(`(${settings.displayName || settings.companyName})`, rightColX + (colWidth / 2), sigY + 30, { align: 'center' });
+
+    // --- FOOTER ---
+    const finalY = pageHeight - 10;
     doc.setFontSize(7);
     doc.setFont("helvetica", "italic");
     doc.setTextColor(150, 150, 150);

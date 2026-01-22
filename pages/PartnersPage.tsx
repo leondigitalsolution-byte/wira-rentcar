@@ -1,9 +1,8 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Partner, Booking, Car, User, Transaction } from '../types';
 import { getStoredData, setStoredData, exportToCSV, processCSVImport, mergeData, compressImage } from '../services/dataService';
 import { generateMonthlyReportPDF } from '../services/pdfService';
-import { Plus, Trash2, Phone, Edit2, X, History, Calendar, CheckCircle, Wallet, Download, Upload, FileText, Filter, Camera, UserCog } from 'lucide-react';
+import { Plus, Trash2, Phone, Edit2, X, Image as ImageIcon, History, Calendar, CheckCircle, Clock, Wallet, Download, Upload, FileText, Filter } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -120,7 +119,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
   };
 
   const handleDelete = (id: string) => {
-      if(window.confirm('Konfirmasi Persetujuan: Apakah Anda yakin ingin menghapus data investor ini secara permanen? Tindakan ini hanya dapat dilakukan dengan wewenang Superadmin.')) {
+      if(window.confirm('Konfirmasi Persetujuan: Apakah Anda yakin ingin menghapus data mitra ini secara permanen? Tindakan ini hanya dapat dilakukan dengan wewenang Superadmin.')) {
           setPartners(prev => {
               const updated = prev.filter(p => p.id !== id);
               setStoredData('partners', updated);
@@ -167,8 +166,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
 
   const getPartnerDeposits = () => {
       if(!historyPartner) return [];
-      // Also match 'Setor Mitra' for backward compatibility
-      let filtered = transactions.filter(t => (t.category === 'Setor Investor' || t.category === 'Setor Mitra') && t.relatedId === historyPartner.id);
+      let filtered = transactions.filter(t => t.category === 'Setor Mitra' && t.relatedId === historyPartner.id);
 
       // Apply Date Filter
       if (historyStartDate || historyEndDate) {
@@ -202,7 +200,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
       );
   };
 
-  const handleExport = () => exportToCSV(displayedPartners, 'Data_Investor_BRC');
+  const handleExport = () => exportToCSV(displayedPartners, 'Data_Mitra_BRC');
   const handleImportClick = () => fileInputRef.current?.click();
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
@@ -213,7 +211,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
               
               setPartners(merged);
               setStoredData('partners', merged);
-              alert('Data investor berhasil diproses (Update/Insert)!');
+              alert('Data mitra berhasil diproses (Update/Insert)!');
           });
       }
   };
@@ -222,8 +220,8 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
     <div className="space-y-6">
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
-          <h2 className="text-3xl font-bold text-slate-800">{isPartnerView ? 'Profil & Pendapatan Saya' : 'Investor & Rekanan'}</h2>
-          <p className="text-slate-500">{isPartnerView ? 'Informasi unit, pendapatan sewa, dan riwayat dividen.' : 'Kelola investor pemilik mobil titipan, foto dan bagi hasil.'}</p>
+          <h2 className="text-3xl font-bold text-slate-800">{isPartnerView ? 'Profil & Pendapatan Saya' : 'Mitra & Rekanan'}</h2>
+          <p className="text-slate-500">{isPartnerView ? 'Informasi unit, pendapatan sewa, dan riwayat setoran.' : 'Kelola pemilik mobil titipan, foto dan bagi hasil.'}</p>
         </div>
         <div className="flex flex-wrap gap-2">
             {!isPartnerView && (
@@ -239,7 +237,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
             )}
             {!isPartnerView && (
                 <button onClick={() => openModal()} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                    <Plus size={18} /> Tambah Investor
+                    <Plus size={18} /> Tambah Mitra
                 </button>
             )}
         </div>
@@ -313,7 +311,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto">
                   <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-bold text-slate-800">{editingPartner ? 'Edit Investor' : 'Tambah Investor Baru'}</h3>
+                      <h3 className="text-xl font-bold text-slate-800">{editingPartner ? 'Edit Mitra' : 'Tambah Mitra Baru'}</h3>
                       <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                   </div>
                   <form onSubmit={handleSave} className="space-y-6">
@@ -334,7 +332,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                                   </>
                               ) : (
                                   <div className="text-center text-slate-400">
-                                      <Camera className="w-8 h-8 mx-auto mb-1" />
+                                      <ImageIcon className="w-8 h-8 mx-auto mb-1" />
                                       <span className="text-[10px]">Foto</span>
                                   </div>
                               )}
@@ -348,7 +346,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                       </div>
 
                       <div>
-                          <label className="block text-sm font-medium text-slate-700">Nama Investor</label>
+                          <label className="block text-sm font-medium text-slate-700">Nama Mitra</label>
                           <input required type="text" className="w-full border rounded-lg p-2.5 mt-1" value={name} onChange={e => setName(e.target.value)} />
                       </div>
                       <div>
@@ -356,7 +354,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                           <input required type="tel" className="w-full border rounded-lg p-2.5 mt-1" value={phone} onChange={e => setPhone(e.target.value)} />
                       </div>
                       <div>
-                          <label className="block text-sm font-medium text-slate-700">Persentase Bagi Hasil (Untuk Investor)</label>
+                          <label className="block text-sm font-medium text-slate-700">Persentase Bagi Hasil (Untuk Mitra)</label>
                           <div className="flex items-center gap-2 mt-1">
                             <input required type="number" min="1" max="100" className="w-full border rounded-lg p-2.5" value={split} onChange={e => setSplit(Number(e.target.value))} />
                             <span className="text-slate-500 font-bold">%</span>
@@ -435,7 +433,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                         {activeHistoryTab === 'bookings' && (
                             <div className="space-y-3">
                                 {getPartnerBookings().length === 0 ? (
-                                    <div className="text-center py-10 text-slate-500 italic">Belum ada riwayat penyewaan unit investor ini.</div>
+                                    <div className="text-center py-10 text-slate-500 italic">Belum ada riwayat penyewaan unit mitra ini.</div>
                                 ) : (
                                     getPartnerBookings().map(booking => {
                                         const car = cars.find(c => c.id === booking.carId);

@@ -41,6 +41,7 @@ export interface AppSettings {
   website: string;
   invoiceFooter: string;
   logoUrl?: string | null;
+  stampUrl?: string | null; // New: Corporate Stamp Image
   
   // Theme Settings
   themeColor: string; // 'red', 'blue', 'green', 'purple', 'orange', 'black'

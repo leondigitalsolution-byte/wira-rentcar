@@ -15,6 +15,8 @@ export const DEFAULT_SETTINGS: AppSettings = {
   email: 'admin@rento.click',
   website: 'rento.click',
   invoiceFooter: 'Terima kasih atas kepercayaan Anda menggunakan jasa kami.',
+  logoUrl: null,
+  stampUrl: null,
   themeColor: 'red',
   darkMode: false,
   paymentTerms: '1. Pembayaran DP minimal 30% saat booking.\n2. Pelunasan dilakukan saat serah terima unit.\n3. Pembayaran via Transfer BCA 1234567890 a.n Bersama Rent.',
@@ -356,7 +358,7 @@ const generateDummyDataObjects = () => {
     ];
 
     const partners: Partner[] = [
-        { id: 'p1', name: 'Investor Sejahtera', phone: '081233334444', splitPercentage: 70, image: 'https://i.pravatar.cc/150?u=p1' }
+        { id: 'p1', name: 'Mitra Sejahtera', phone: '081233334444', splitPercentage: 70, image: 'https://i.pravatar.cc/150?u=p1' }
     ];
 
     const customers: Customer[] = [

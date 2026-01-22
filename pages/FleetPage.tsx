@@ -193,7 +193,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
                     <img src={car.image} alt={car.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
                     {car.partnerId && !isPartnerView && (
                         <div className="absolute top-2 right-2 bg-yellow-400 text-yellow-900 text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-sm z-10">
-                            <UserIcon size={12} /> Mitra
+                            <UserIcon size={12} /> Investor
                         </div>
                     )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
@@ -296,7 +296,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                               </div>
                               <div>
-                                  <label className="block text-sm font-medium text-slate-700">Pemilik Unit (Mitra)</label>
+                                  <label className="block text-sm font-medium text-slate-700">Pemilik Unit (Investor)</label>
                                   <select disabled={isPartnerView} className="w-full border border-slate-300 rounded-lg p-2.5 mt-1 disabled:bg-slate-100" value={partnerId} onChange={e => setPartnerId(e.target.value)}>
                                       <option value="">Milik Perusahaan (Sendiri)</option>
                                       {partners.map(p => (

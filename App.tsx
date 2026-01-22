@@ -15,7 +15,6 @@ import HighSeasonPage from './pages/HighSeasonPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
 import CustomersPage from './pages/CustomersPage';
-import DriverTrackingPage from './pages/DriverTrackingPage';
 import ExpensesPage from './pages/ExpensesPage';
 import StatisticsPage from './pages/StatisticsPage';
 import CalculatorPage from './pages/CalculatorPage';
@@ -85,7 +84,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
       switch(location.pathname) {
           case '/booking': return 'Booking';
           case '/fleet': return 'Armada';
-          case '/partners': return isPartner ? 'Saldo Saya' : 'Mitra';
+          case '/partners': return isPartner ? 'Saldo Saya' : 'Investor';
           case '/drivers': return isDriver ? 'Profil' : 'Driver';
           case '/customers': return 'Pelanggan';
           case '/expenses': return isDriver ? 'Reimbursement' : 'Keuangan';
@@ -97,7 +96,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
       }
   };
 
-  const UserProfile = ({ showName = true }) => (
+  const UserProfile = ({ showName = true }: { showName?: boolean }) => (
       <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full flex items-center justify-center font-bold border border-slate-200 overflow-hidden bg-slate-100 dark:bg-slate-700 dark:border-slate-600">
              {user.image ? (
@@ -109,7 +108,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
           {showName && (
               <div className="hidden md:block text-left">
                   <p className="text-sm font-bold text-slate-800 dark:text-white">{user.name}</p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{user.role}</p>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{user.role === 'partner' ? 'Investor' : user.role}</p>
               </div>
           )}
       </div>
@@ -146,7 +145,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                         <SidebarItem to="/fleet" icon={Car} label="Armada Mobil" />
                         <SidebarItem to="/customers" icon={Users} label="Data Pelanggan" />
                         <SidebarItem to="/drivers" icon={UserCircle} label="Data Driver" />
-                        <SidebarItem to="/partners" icon={UserCog} label="Mitra & Rekanan" />
+                        <SidebarItem to="/partners" icon={UserCog} label="Investor & Rekanan" />
                         <SidebarItem to="/high-season" icon={CalendarClock} label="High Season" />
                     </div>
                 </div>
@@ -182,7 +181,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
 
           {isPartner && (
               <div className="mb-6">
-                <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Mitra</h3>
+                <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Investor</h3>
                 <div className="space-y-1">
                     <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
                     <SidebarItem to="/partners" icon={Wallet} label="Pendapatan" />

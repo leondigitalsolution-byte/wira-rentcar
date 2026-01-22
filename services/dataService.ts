@@ -356,7 +356,7 @@ const generateDummyDataObjects = () => {
     ];
 
     const partners: Partner[] = [
-        { id: 'p1', name: 'Mitra Sejahtera', phone: '081233334444', splitPercentage: 70, image: 'https://i.pravatar.cc/150?u=p1' }
+        { id: 'p1', name: 'Investor Sejahtera', phone: '081233334444', splitPercentage: 70, image: 'https://i.pravatar.cc/150?u=p1' }
     ];
 
     const customers: Customer[] = [

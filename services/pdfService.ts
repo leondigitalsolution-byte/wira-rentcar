@@ -286,7 +286,7 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
     doc.save(`Invoice_${booking.customerName.replace(/\s+/g, '_')}_${booking.id.slice(0, 8)}.pdf`);
 };
 
-export const generateMonthlyReportPDF = (type: 'Driver' | 'Partner', entity: any, month: string, expenses: Transaction[], trips: Booking[]) => {
+export const generateMonthlyReportPDF = (type: 'Driver' | 'Investor', entity: any, month: string, expenses: Transaction[], trips: Booking[]) => {
     const settings = getStoredData<AppSettings>('appSettings', DEFAULT_SETTINGS);
     const doc = new jsPDF();
     const margin = 15;
@@ -353,7 +353,7 @@ export const generateMonthlyReportPDF = (type: 'Driver' | 'Partner', entity: any
     // Table 1: Riwayat Perjalanan
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(type === 'Partner' ? "Riwayat Perjalanan Unit" : "Riwayat Perjalanan", margin, currentY);
+    doc.text(type === 'Investor' ? "Riwayat Perjalanan Unit" : "Riwayat Perjalanan", margin, currentY);
     currentY += 5;
 
     doc.setFillColor(230, 230, 230);
@@ -395,14 +395,14 @@ export const generateMonthlyReportPDF = (type: 'Driver' | 'Partner', entity: any
     checkPageBreak(25);
     doc.setFontSize(10);
     doc.setFont("helvetica", "bold");
-    doc.text(type === 'Partner' ? "Riwayat Setoran" : "Riwayat Gaji & Reimbursement", margin, currentY);
+    doc.text(type === 'Investor' ? "Riwayat Setoran" : "Riwayat Gaji & Reimbursement", margin, currentY);
     currentY += 5;
 
     doc.setFillColor(230, 230, 230);
     doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
     doc.setFontSize(8);
     doc.text("Tanggal", margin + 2, currentY + 4.5);
-    doc.text(type === 'Partner' ? "Detail" : "Kategori", margin + 35, currentY + 4.5);
+    doc.text(type === 'Investor' ? "Detail" : "Kategori", margin + 35, currentY + 4.5);
     if (type === 'Driver') doc.text("Detail", margin + 75, currentY + 4.5);
     doc.text("Nominal (Rp)", type === 'Driver' ? margin + 130 : margin + 110, currentY + 4.5);
     doc.text("Status", pageWidth - margin - 2, currentY + 4.5, { align: 'right' });

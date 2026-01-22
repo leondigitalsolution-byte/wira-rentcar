@@ -45,7 +45,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
     setPartners(getStoredData<Partner[]>('partners', []));
     
     if (isDriverView) setCategory('Reimbursement');
-    if (isPartnerView) setCategory('Setor Mitra');
+    if (isPartnerView) setCategory('Setor Investor');
   }, [isDriverView, isPartnerView]);
 
   // Handle incoming navigation state (e.g. "Pay this transaction")
@@ -63,7 +63,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
   // Auto-set status based on category for new entries
   useEffect(() => {
       if (!editingId && !isDriverView && !isPartnerView) {
-          if (['Setor Mitra', 'Gaji', 'Reimbursement'].includes(category)) {
+          if (['Setor Investor', 'Setor Mitra', 'Gaji', 'Reimbursement'].includes(category)) {
               setStatus('Pending');
           } else {
               setStatus('Paid');
@@ -89,7 +89,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     
-    const isPartnerDeposit = category === 'Setor Mitra';
+    const isPartnerDeposit = category === 'Setor Investor' || category === 'Setor Mitra';
     
     let relatedId = undefined;
     if (isDriverView && currentUser?.linkedDriverId) {
@@ -186,7 +186,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
       setEditingId(null);
       setDescription('');
       setAmount('');
-      setCategory(isDriverView ? 'Reimbursement' : isPartnerView ? 'Setor Mitra' : 'Operasional');
+      setCategory(isDriverView ? 'Reimbursement' : isPartnerView ? 'Setor Investor' : 'Operasional');
       setStatus('Paid');
       setReceiptImage(null);
       setSelectedPartnerId('');
@@ -220,7 +220,8 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
       }
   } else if (isPartnerView) {
       if (currentUser?.linkedPartnerId) {
-          displayedTransactions = displayedTransactions.filter((t: Transaction) => t.category === 'Setor Mitra' && t.relatedId === currentUser.linkedPartnerId);
+          // Filter for both old "Setor Mitra" and new "Setor Investor"
+          displayedTransactions = displayedTransactions.filter((t: Transaction) => (t.category === 'Setor Investor' || t.category === 'Setor Mitra') && t.relatedId === currentUser.linkedPartnerId);
       }
   }
 
@@ -252,7 +253,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
               {isDriverView ? 'Reimbursement Saya' : isPartnerView ? 'Riwayat Setoran' : 'Pengeluaran & Setoran'}
           </h2>
           <p className="text-slate-500">
-              {isDriverView ? 'Ajukan klaim biaya perjalanan.' : isPartnerView ? 'Riwayat setoran bagi hasil dari rental.' : 'Kelola operasional, reimbursement, dan setoran mitra.'}
+              {isDriverView ? 'Ajukan klaim biaya perjalanan.' : isPartnerView ? 'Riwayat setoran bagi hasil dari rental.' : 'Kelola operasional, reimbursement, dan setoran investor.'}
           </p>
         </div>
         
@@ -271,7 +272,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                     >
                         <option value="All">Semua Kategori</option>
                         <option value="Operasional">Operasional</option>
-                        <option value="Setor Mitra">Setor Mitra</option>
+                        <option value="Setor Investor">Setor Investor</option>
                         <option value="Gaji">Gaji</option>
                         <option value="BBM">BBM</option>
                         <option value="Tol/Parkir">Tol/Parkir</option>
@@ -327,11 +328,12 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                     ) : (
                         displayedTransactions.map((t: Transaction) => {
                             const entityName = getEntityName(t.relatedId);
+                            const isDeposit = t.category === 'Setor Investor' || t.category === 'Setor Mitra';
                             return (
                                 <tr key={t.id} className="hover:bg-slate-50">
                                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{new Date(t.date).toLocaleDateString('id-ID')}</td>
                                     <td className="px-6 py-4 whitespace-nowrap">
-                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${t.category === 'Setor Mitra' ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}`}>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-semibold ${isDeposit ? 'bg-purple-100 text-purple-700' : 'bg-slate-100 text-slate-700'}`}>
                                             {t.category}
                                         </span>
                                     </td>
@@ -340,7 +342,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                                         <div className="flex items-center gap-2 mt-1">
                                             {entityName && (
                                                 <span className="text-xs bg-orange-50 text-orange-700 px-1.5 py-0.5 rounded flex items-center gap-1 w-fit">
-                                                    {t.category === 'Setor Mitra' ? <Users size={10}/> : <UserIcon size={10} />} {entityName}
+                                                    {isDeposit ? <Users size={10}/> : <UserIcon size={10} />} {entityName}
                                                 </span>
                                             )}
                                             {t.receiptImage && (
@@ -351,7 +353,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                                     <td className="px-6 py-4 whitespace-nowrap">
                                         {t.status === 'Paid' ? (
                                             <span className="flex items-center gap-1 text-xs font-bold text-green-600 bg-green-50 px-2 py-1 rounded-full w-fit">
-                                                <CheckCircle size={12} /> {t.category === 'Setor Mitra' ? 'Disetor' : 'Dibayar'}
+                                                <CheckCircle size={12} /> {isDeposit ? 'Disetor' : 'Dibayar'}
                                             </span>
                                         ) : t.status === 'Pending' ? (
                                             <span className="flex items-center gap-1 text-xs font-bold text-orange-600 bg-orange-50 px-2 py-1 rounded-full w-fit">
@@ -377,7 +379,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                                                         className="relative z-10 text-xs font-bold bg-green-600 text-white px-3 py-1.5 rounded-lg hover:bg-green-700 transition-colors shadow-sm flex items-center gap-1 active:scale-95 cursor-pointer"
                                                         title="Upload Bukti & Lunasi"
                                                     >
-                                                        {t.category === 'Setor Mitra' ? 'Setor' : 'Bayar'}
+                                                        {isDeposit ? 'Setor' : 'Bayar'}
                                                     </button>
                                                 )}
                                                 <button onClick={() => handleEdit(t)} className="p-1.5 text-indigo-600 bg-indigo-50 hover:bg-indigo-100 rounded border border-indigo-100" title="Edit">
@@ -423,7 +425,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                               ) : (
                                   <>
                                     <option value="Operasional">Operasional Kantor</option>
-                                    <option value="Setor Mitra">Setor ke Mitra</option>
+                                    <option value="Setor Investor">Setor ke Investor</option>
                                     <option value="Gaji">Gaji Driver / Karyawan</option>
                                     <option value="BBM">BBM / Bensin</option>
                                     <option value="Tol/Parkir">Tol & Parkir</option>
@@ -451,11 +453,11 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                           </div>
                       )}
 
-                      {category === 'Setor Mitra' && (
+                      {(category === 'Setor Investor' || category === 'Setor Mitra') && (
                           <div>
-                              <label className="block text-sm font-medium text-slate-700">Pilih Mitra</label>
+                              <label className="block text-sm font-medium text-slate-700">Pilih Investor</label>
                               <select required className="w-full border rounded-lg p-2.5 mt-1" value={selectedPartnerId} onChange={e => setSelectedPartnerId(e.target.value)}>
-                                  <option value="">-- Pilih Mitra --</option>
+                                  <option value="">-- Pilih Investor --</option>
                                   {partners.map(p => (
                                       <option key={p.id} value={p.id}>{p.name} (Split: {p.splitPercentage}%)</option>
                                   ))}

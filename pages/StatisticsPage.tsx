@@ -54,7 +54,7 @@ const StatisticsPage = () => {
 
   if (isPartner && currentUser.linkedPartnerId) {
       filteredTransactions = filteredTransactions.filter(t => 
-          t.category === 'Setor Mitra' && t.relatedId === currentUser.linkedPartnerId
+          (t.category === 'Setor Investor' || t.category === 'Setor Mitra') && t.relatedId === currentUser.linkedPartnerId
       );
       const partnerCarIds = cars.filter(c => c.partnerId === currentUser.linkedPartnerId).map(c => c.id);
       filteredBookings = filteredBookings.filter(b => partnerCarIds.includes(b.carId));
@@ -92,7 +92,7 @@ const StatisticsPage = () => {
       });
       return [
           { name: 'Mobil Perusahaan', value: company },
-          { name: 'Mobil Mitra', value: partner }
+          { name: 'Mobil Investor', value: partner }
       ].filter(d => d.value > 0);
   };
 
@@ -364,7 +364,7 @@ const StatisticsPage = () => {
                   </div>
               </div>
               <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-w-0">
-                  <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><ShieldCheck size={18}/> Transaksi Perusahaan vs Mitra</h4>
+                  <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><ShieldCheck size={18}/> Transaksi Perusahaan vs Investor</h4>
                   <div style={{ width: '100%', height: 300 }}>
                       <ResponsiveContainer width="100%" height="100%">
                           <PieChart>

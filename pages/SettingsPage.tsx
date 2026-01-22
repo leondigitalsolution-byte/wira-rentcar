@@ -267,7 +267,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                   
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
                         <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-600">
-                            <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-2">Role Anda: <span className="uppercase text-indigo-600">{currentUser.role}</span></h4>
+                            <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-2">Role Anda: <span className="uppercase text-indigo-600">{currentUser.role === 'partner' ? 'Investor' : currentUser.role}</span></h4>
                             <p className="text-sm text-slate-500 dark:text-slate-400">
                                 Anda memiliki akses {currentUser.role === 'superadmin' ? 'Penuh (Full Access)' : 'Terbatas'} ke fitur sistem.
                             </p>
@@ -303,7 +303,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                       <h4 className="font-bold text-lg text-slate-800 dark:text-white border-l-4 border-indigo-500 pl-3 mt-6">Armada & Driver</h4>
                       <FaqItem 
                         question="Bagaimana cara menambah Unit Mobil?" 
-                        answer="Masuk ke menu 'Armada Mobil', klik tombol 'Tambah Mobil'. Isi data mobil, plat nomor, upload foto, dan tentukan harga sewa dasar. Anda juga bisa mengaitkan mobil dengan Mitra pemilik jika mobil tersebut titipan." 
+                        answer="Masuk ke menu 'Armada Mobil', klik tombol 'Tambah Mobil'. Isi data mobil, plat nomor, upload foto, dan tentukan harga sewa dasar. Anda juga bisa mengaitkan mobil dengan Investor pemilik jika mobil tersebut titipan." 
                       />
                       <FaqItem 
                         question="Bagaimana cara menghitung gaji driver?" 
@@ -317,7 +317,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                       />
                       <FaqItem 
                         question="Apa bedanya status 'Paid' dan 'Pending'?" 
-                        answer="Status 'Paid' berarti uang sudah keluar/masuk kas. Status 'Pending' (Menunggu) digunakan untuk tagihan yang belum dibayar, misalnya gaji driver yang akan dibayar akhir bulan atau setoran mitra yang ditahan sementara." 
+                        answer="Status 'Paid' berarti uang sudah keluar/masuk kas. Status 'Pending' (Menunggu) digunakan untuk tagihan yang belum dibayar, misalnya gaji driver yang akan dibayar akhir bulan atau setoran investor yang ditahan sementara." 
                       />
                       <FaqItem 
                         question="Bagaimana cara melihat Laporan Laba/Rugi?" 
@@ -564,7 +564,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                 <select value={role} onChange={e => setRole(e.target.value)} className="w-full border rounded p-2">
                                     <option value="admin">Admin / Staff</option>
                                     <option value="driver">Driver</option>
-                                    <option value="partner">Mitra</option>
+                                    <option value="partner">Investor (Mitra)</option>
                                     <option value="superadmin">Super Admin</option>
                                 </select>
                             </div>
@@ -590,16 +590,16 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                             {role === 'partner' && (
                                 <div className="md:col-span-2 bg-purple-50 border border-purple-100 p-3 rounded-lg animate-in fade-in slide-in-from-top-2">
                                     <label className="block text-xs font-bold uppercase text-purple-800 mb-1 flex items-center gap-1">
-                                        <LinkIcon size={12}/> Hubungkan dengan Data Mitra
+                                        <LinkIcon size={12}/> Hubungkan dengan Data Investor
                                     </label>
                                     <select value={linkedPartnerId} onChange={e => setLinkedPartnerId(e.target.value)} className="w-full border border-purple-300 rounded p-2 text-sm">
-                                        <option value="">-- Pilih Data Mitra --</option>
+                                        <option value="">-- Pilih Data Investor --</option>
                                         {partnersList.map(p => (
                                             <option key={p.id} value={p.id}>{p.name}</option>
                                         ))}
                                     </select>
                                     <p className="text-[10px] text-purple-700 mt-1">
-                                        *User ini hanya akan melihat unit mobil dan laporan keuangan milik Mitra yang dipilih.
+                                        *User ini hanya akan melihat unit mobil dan laporan keuangan milik Investor yang dipilih.
                                     </p>
                                 </div>
                             )}
@@ -661,7 +661,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
                                           <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800 uppercase">
-                                              {u.role}
+                                              {u.role === 'partner' ? 'Investor' : u.role}
                                           </span>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">

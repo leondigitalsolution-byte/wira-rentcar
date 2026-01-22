@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Transaction, Driver, User, Partner } from '../types';
 import { getStoredData, setStoredData, exportToCSV } from '../services/dataService';
-import { Plus, Image as ImageIcon, X, Upload, CheckCircle, Clock, User as UserIcon, Users, Download, Filter, Edit2, Trash2, Eye } from 'lucide-react';
+import { Plus, Image as ImageIcon, X, CheckCircle, Clock, User as UserIcon, Users, Download, Filter, Edit2, Trash2, Camera } from 'lucide-react';
 import { getCurrentUser } from '../services/authService';
 import { useLocation } from 'react-router-dom';
 
@@ -25,7 +25,6 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
   const [filterEndDate, setFilterEndDate] = useState('');
   const [filterCategory, setFilterCategory] = useState('All');
   const [filterTxStatus, setFilterTxStatus] = useState('All');
-  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
 
   // Form
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -301,16 +300,6 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                 </div>
             )}
 
-            {/* Mobile Filter Trigger */}
-            {!isDriverView && !isPartnerView && (
-                <button 
-                    onClick={() => setIsMobileFilterOpen(!isMobileFilterOpen)} 
-                    className="md:hidden bg-white text-slate-600 border border-slate-300 hover:bg-slate-50 px-3 py-2 rounded-lg flex items-center gap-2 shadow-sm text-sm font-bold"
-                >
-                    <Filter size={16} /> {isMobileFilterOpen ? 'Tutup' : 'Filter'}
-                </button>
-            )}
-
             {!isPartnerView && (
                 <button onClick={() => { resetForm(); setIsModalOpen(true); }} className="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
                     <Plus size={18} /> {isDriverView ? 'Ajukan Klaim' : 'Catat Pengeluaran'}
@@ -318,64 +307,6 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
             )}
         </div>
       </div>
-
-      {/* Mobile Filter Panel */}
-      {isMobileFilterOpen && !isDriverView && !isPartnerView && (
-          <div className="md:hidden bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-4 animate-in fade-in slide-in-from-top-2">
-              <div className="flex justify-between items-center border-b pb-2">
-                  <h4 className="font-bold text-slate-700 flex items-center gap-2"><Filter size={16}/> Filter Data</h4>
-                  <button onClick={() => setIsMobileFilterOpen(false)} className="text-slate-400"><X size={18}/></button>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
-                  <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Dari Tanggal</label>
-                      <input type="date" className="w-full border rounded-lg p-2 text-sm bg-slate-50" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
-                  </div>
-                  <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Sampai Tanggal</label>
-                      <input type="date" className="w-full border rounded-lg p-2 text-sm bg-slate-50" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
-                  </div>
-              </div>
-              
-              <div>
-                  <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Kategori</label>
-                  <select className="w-full border rounded-lg p-2 text-sm bg-slate-50" value={filterCategory} onChange={e => setFilterCategory(e.target.value)}>
-                        <option value="All">Semua Kategori</option>
-                        <option value="Operasional">Operasional</option>
-                        <option value="Setor Mitra">Setor Mitra</option>
-                        <option value="Gaji">Gaji</option>
-                        <option value="BBM">BBM</option>
-                        <option value="Tol/Parkir">Tol/Parkir</option>
-                        <option value="Service">Service</option>
-                        <option value="Marketing">Marketing</option>
-                        <option value="Reimbursement">Reimbursement</option>
-                        <option value="Lainnya">Lainnya</option>
-                  </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                  <div>
-                      <label className="text-[10px] font-bold text-slate-500 uppercase mb-1 block">Status</label>
-                      <select className="w-full border rounded-lg p-2 text-sm bg-slate-50" value={filterTxStatus} onChange={e => setFilterTxStatus(e.target.value)}>
-                            <option value="All">Semua</option>
-                            <option value="Paid">Lunas</option>
-                            <option value="Pending">Pending</option>
-                      </select>
-                  </div>
-                  <div className="flex items-end">
-                      <button onClick={handleExportCSV} className="w-full bg-green-100 text-green-700 hover:bg-green-200 border border-green-200 py-2 rounded-lg text-sm font-bold flex items-center justify-center gap-1">
-                          <Download size={16} /> CSV
-                      </button>
-                  </div>
-              </div>
-
-              {(filterStartDate || filterEndDate || filterCategory !== 'All' || filterTxStatus !== 'All') && (
-                  <button onClick={() => {setFilterStartDate(''); setFilterEndDate(''); setFilterCategory('All'); setFilterTxStatus('All');}} className="w-full py-2 text-red-600 text-sm font-bold bg-red-50 hover:bg-red-100 rounded-lg transition-colors">
-                      Reset Filter
-                  </button>
-              )}
-          </div>
-      )}
 
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="overflow-x-auto">
@@ -562,11 +493,11 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
                                 <div className="w-20 h-20 bg-slate-100 rounded-lg flex items-center justify-center overflow-hidden border border-slate-200">
                                     {receiptImage ? (
                                         <img src={receiptImage} className="w-full h-full object-cover" />
-                                    ) : <ImageIcon className="text-slate-400" />}
+                                    ) : <Camera className="text-slate-400" />}
                                 </div>
                                 <div className="flex-1">
                                     <label className="cursor-pointer bg-white border border-slate-300 hover:bg-slate-50 px-4 py-2 rounded-lg text-sm font-medium inline-flex items-center gap-2 text-slate-700">
-                                        <Upload size={16} /> {receiptImage ? 'Ganti Foto' : 'Upload Bukti'}
+                                        <Camera size={16} /> {receiptImage ? 'Ganti Foto' : 'Ambil Foto / Upload'}
                                         <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
                                     </label>
                                 </div>

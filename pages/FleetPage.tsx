@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Car, Partner, User, AppSettings } from '../types';
 import { getStoredData, setStoredData, DEFAULT_SETTINGS, exportToCSV, processCSVImport, mergeData, compressImage } from '../services/dataService';
-import { Plus, Trash2, Edit2, User as UserIcon, Upload, Image as ImageIcon, X, Download, FileSpreadsheet, MapPin } from 'lucide-react';
+import { Plus, Trash2, Edit2, User as UserIcon, Upload, X, Download, FileSpreadsheet, MapPin, Camera } from 'lucide-react';
 
 interface Props {
     currentUser: User;
@@ -25,8 +25,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
   const [prices, setPrices] = useState<{[key: string]: number}>({});
   const [partnerId, setPartnerId] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [gpsDeviceId, setGpsDeviceId] = useState('');
-
+  
   const isSuperAdmin = currentUser.role === 'superadmin';
   const isPartnerView = currentUser.role === 'partner';
 
@@ -45,7 +44,6 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
         setType(car.type);
         setPartnerId(car.partnerId || '');
         setImagePreview(car.image);
-        setGpsDeviceId(car.gpsDeviceId || '');
         if (car.pricing) {
             setPrices(car.pricing);
         } else {
@@ -61,7 +59,6 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
         setType(settings.carCategories[0] || 'MPV');
         setPartnerId(isPartnerView ? (currentUser.linkedPartnerId || '') : ''); 
         setImagePreview(null);
-        setGpsDeviceId('');
         setPrices({});
     }
     setIsModalOpen(true);
@@ -106,7 +103,6 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
         partnerId: partnerId || null,
         status: 'Available',
         image: finalImage,
-        gpsDeviceId: gpsDeviceId || undefined
     };
 
     let updatedCars;
@@ -200,11 +196,6 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
                             <UserIcon size={12} /> Mitra
                         </div>
                     )}
-                    {car.gpsDeviceId && (
-                        <div className="absolute bottom-2 left-2 bg-slate-900/80 text-green-400 text-[10px] font-bold px-2 py-1 rounded-full flex items-center gap-1 shadow-sm z-10">
-                            <MapPin size={10} /> GPS Connected
-                        </div>
-                    )}
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent opacity-0 group-hover:opacity-100 transition-opacity"></div>
                 </div>
                 <div className="p-5">
@@ -270,8 +261,8 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
                                       </>
                                   ) : (
                                       <div className="text-center p-4 pointer-events-none">
-                                          <ImageIcon className="mx-auto h-10 w-10 text-slate-400 mb-2" />
-                                          <p className="text-sm text-slate-500">Upload foto mobil</p>
+                                          <Camera className="mx-auto h-10 w-10 text-slate-400 mb-2" />
+                                          <p className="text-sm text-slate-500">Ambil Foto / Upload</p>
                                           <p className="text-xs text-slate-400 mt-1">Format: JPG, PNG (Otomatis Dikompres)</p>
                                       </div>
                                   )}
@@ -312,20 +303,6 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
                                           <option key={p.id} value={p.id}>{p.name} (Bagi: {p.splitPercentage}%)</option>
                                       ))}
                                   </select>
-                              </div>
-                              {/* GPS Hardware ID Field */}
-                              <div>
-                                  <label className="block text-sm font-medium text-slate-700 flex items-center gap-2">
-                                    <MapPin size={14} className="text-indigo-600"/> ID Perangkat GPS (IMEI)
-                                  </label>
-                                  <input 
-                                    type="text" 
-                                    placeholder="Contoh: 123456789012345" 
-                                    className="w-full border border-slate-300 rounded-lg p-2.5 mt-1 bg-slate-50 font-mono text-sm" 
-                                    value={gpsDeviceId} 
-                                    onChange={e => setGpsDeviceId(e.target.value)} 
-                                  />
-                                  <p className="text-[10px] text-slate-500 mt-1">Kosongkan jika mobil tidak dipasang GPS.</p>
                               </div>
                           </div>
                       </div>

@@ -196,7 +196,6 @@ const Dashboard = () => {
           <div className="grid grid-cols-4 gap-4 bg-white p-4 rounded-xl border border-slate-200 shadow-sm">
               {isDriver ? (
                   <>
-                    <MenuItem to="/tracking" icon={Navigation} label="Tugas" />
                     <MenuItem to="/expenses" icon={Wallet} label="Klaim" />
                     <MenuItem to="/drivers" icon={UserCircle} label="Profil" />
                     <MenuItem to="/settings" icon={Settings} label="Akun" />
@@ -204,7 +203,6 @@ const Dashboard = () => {
               ) : isPartner ? (
                   <>
                     <MenuItem to="/fleet" icon={CarIcon} label="Unit Saya" />
-                    <MenuItem to="/tracking" icon={Map} label="Tracking" />
                     <MenuItem to="/partners" icon={Wallet} label="Pendapatan" />
                     <MenuItem to="/expenses" icon={Receipt} label="Riwayat" />
                     
@@ -237,7 +235,6 @@ const Dashboard = () => {
                   <div className="grid grid-cols-3 gap-4">
                       <MenuItem to="/drivers" icon={UserCircle} label="Driver" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/partners" icon={UserCog} label="Mitra" onClick={() => setIsMoreMenuOpen(false)} />
-                      <MenuItem to="/tracking" icon={Map} label="Tracking" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/high-season" icon={CalendarClock} label="Highseason" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/settings" icon={Settings} label="Setting" onClick={() => setIsMoreMenuOpen(false)} />
                   </div>
@@ -377,7 +374,7 @@ const Dashboard = () => {
       <div className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
           <div className="p-4 border-b border-slate-100 flex justify-between items-center">
               <h3 className="font-bold text-slate-800">{isDriver ? 'Tugas Terbaru' : 'Booking Terbaru'}</h3>
-              <Link to={isDriver ? "/tracking" : "/booking"} className="text-xs text-indigo-600 font-bold hover:underline">Lihat Semua</Link>
+              <Link to={isDriver ? "/expenses" : "/booking"} className="text-xs text-indigo-600 font-bold hover:underline">Lihat Semua</Link>
           </div>
           <div className="divide-y divide-slate-100">
               {myBookings.slice(0, 5).map(booking => {

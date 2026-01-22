@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Car, CalendarRange, Users, Wallet, Menu, X, UserCog, CalendarClock, Settings, LogOut, MapPin, Receipt, PieChart, UserCircle, Loader2, RefreshCw, FileText, Palette, List, HelpCircle, Map, ChevronLeft, Calculator } from 'lucide-react';
@@ -26,9 +25,9 @@ const SidebarItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: 
   const isActive = location.pathname === to;
   
   return (
-    <Link to={to} className={`flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-red-600 text-white shadow-md' : 'text-slate-600 hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'}`}>
-      <Icon size={20} />
-      <span className="font-medium">{label}</span>
+    <Link to={to} className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-colors ${isActive ? 'bg-red-600 text-white shadow-md' : 'text-slate-600 hover:bg-red-50 hover:text-red-600 dark:text-slate-300 dark:hover:bg-slate-700 dark:hover:text-white'}`}>
+      <Icon size={18} />
+      <span className="font-medium text-sm">{label}</span>
     </Link>
   );
 };
@@ -86,7 +85,6 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
       switch(location.pathname) {
           case '/booking': return 'Booking';
           case '/fleet': return 'Armada';
-          case '/tracking': return 'Tracking';
           case '/partners': return isPartner ? 'Saldo Saya' : 'Mitra';
           case '/drivers': return isDriver ? 'Profil' : 'Driver';
           case '/customers': return 'Pelanggan';
@@ -130,44 +128,69 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
            <LogoText title={settings.displayName || settings.companyName} />
         </div>
         
-        <nav className="flex-1 overflow-y-auto py-6 px-3 space-y-1 custom-scrollbar">
+        <nav className="flex-1 overflow-y-auto py-6 px-3 custom-scrollbar">
           {isOperational && (
               <>
-                <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
-                <SidebarItem to="/booking" icon={CalendarRange} label="Booking & Jadwal" />
-                <SidebarItem to="/calculator" icon={Calculator} label="Kalkulator" />
-                <SidebarItem to="/tracking" icon={Map} label="Tracking Unit" />
-                <SidebarItem to="/fleet" icon={Car} label="Armada Mobil" />
-                <SidebarItem to="/customers" icon={Users} label="Data Pelanggan" />
-                <SidebarItem to="/drivers" icon={UserCircle} label="Data Driver" />
-                <SidebarItem to="/partners" icon={UserCog} label="Mitra & Rekanan" />
-                <SidebarItem to="/expenses" icon={Wallet} label="Keuangan" />
-                <SidebarItem to="/statistics" icon={PieChart} label="Laporan & Statistik" />
-                <SidebarItem to="/high-season" icon={CalendarClock} label="High Season" />
+                <div className="mb-6">
+                    <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Utama</h3>
+                    <div className="space-y-1">
+                        <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
+                        <SidebarItem to="/booking" icon={CalendarRange} label="Booking & Jadwal" />
+                        <SidebarItem to="/calculator" icon={Calculator} label="Kalkulator" />
+                    </div>
+                </div>
+
+                <div className="mb-6">
+                    <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Master Data</h3>
+                    <div className="space-y-1">
+                        <SidebarItem to="/fleet" icon={Car} label="Armada Mobil" />
+                        <SidebarItem to="/customers" icon={Users} label="Data Pelanggan" />
+                        <SidebarItem to="/drivers" icon={UserCircle} label="Data Driver" />
+                        <SidebarItem to="/partners" icon={UserCog} label="Mitra & Rekanan" />
+                        <SidebarItem to="/high-season" icon={CalendarClock} label="High Season" />
+                    </div>
+                </div>
+
+                <div className="mb-6">
+                    <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Keuangan</h3>
+                    <div className="space-y-1">
+                        <SidebarItem to="/expenses" icon={Wallet} label="Keuangan" />
+                        <SidebarItem to="/statistics" icon={PieChart} label="Laporan & Statistik" />
+                    </div>
+                </div>
+
+                <div className="mb-6">
+                    <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sistem</h3>
+                    <div className="space-y-1">
+                        <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
+                    </div>
+                </div>
               </>
           )}
 
           {isDriver && (
-              <>
-                <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
-                <SidebarItem to="/tracking" icon={Map} label="Tugas & Riwayat" />
-                <SidebarItem to="/expenses" icon={Wallet} label="Reimbursement" />
-                <SidebarItem to="/drivers" icon={UserCircle} label="Profil Saya" />
-              </>
+              <div className="mb-6">
+                <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Driver</h3>
+                <div className="space-y-1">
+                    <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
+                    <SidebarItem to="/expenses" icon={Wallet} label="Reimbursement" />
+                    <SidebarItem to="/drivers" icon={UserCircle} label="Profil Saya" />
+                    <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
+                </div>
+              </div>
           )}
 
           {isPartner && (
-              <>
-                <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
-                <SidebarItem to="/tracking" icon={Map} label="Unit" />
-                <SidebarItem to="/partners" icon={Wallet} label="Pendapatan" />
-                <SidebarItem to="/expenses" icon={List} label="Riwayat Setoran" />
-              </>
+              <div className="mb-6">
+                <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Mitra</h3>
+                <div className="space-y-1">
+                    <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
+                    <SidebarItem to="/partners" icon={Wallet} label="Pendapatan" />
+                    <SidebarItem to="/expenses" icon={List} label="Riwayat Setoran" />
+                    <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
+                </div>
+              </div>
           )}
-          
-          <div className="pt-4 mt-4 border-t border-slate-100 dark:border-slate-700">
-            <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
-          </div>
         </nav>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-700">
@@ -232,7 +255,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
           {isOperational ? (
               <>
                 <BottomNavItem to="/booking" icon={CalendarRange} label="Booking" />
-                <BottomNavItem to="/tracking" icon={Map} label="Tracking" />
+                <BottomNavItem to="/fleet" icon={Car} label="Armada" />
                 
                 {/* CENTER HOME BUTTON */}
                 <div className="relative -top-5 mx-1 flex flex-col items-center justify-center">
@@ -246,7 +269,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
               </>
           ) : isDriver ? (
               <>
-                <BottomNavItem to="/tracking" icon={Map} label="Tugas" />
+                <BottomNavItem to="/" icon={LayoutDashboard} label="Home" />
                 <BottomNavItem to="/expenses" icon={Wallet} label="Klaim" />
                 
                 <div className="relative -top-5 mx-1 flex flex-col items-center justify-center">
@@ -261,7 +284,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
           ) : (
               // Partner
               <>
-                <BottomNavItem to="/tracking" icon={Map} label="Unit" />
+                <BottomNavItem to="/" icon={LayoutDashboard} label="Home" />
                 <BottomNavItem to="/partners" icon={Wallet} label="Saldo" />
                 
                 <div className="relative -top-5 mx-1 flex flex-col items-center justify-center">
@@ -330,17 +353,6 @@ const App = () => {
 
         <Route path="/fleet" element={
             user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'partner') ? <AppLayout user={user} onLogout={handleLogout}><FleetPage currentUser={user}/></AppLayout> : <Navigate to="/" />
-        } />
-        
-        <Route path="/tracking" element={
-            user ? <AppLayout user={user} onLogout={handleLogout}>
-                <DriverTrackingPage 
-                    isDriverView={user.role === 'driver'} 
-                    isPartnerView={user.role === 'partner'} 
-                    driverId={user.linkedDriverId}
-                    partnerId={user.linkedPartnerId}
-                />
-            </AppLayout> : <Navigate to="/login" />
         } />
         
         <Route path="/partners" element={

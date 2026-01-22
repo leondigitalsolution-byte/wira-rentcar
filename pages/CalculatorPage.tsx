@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Car, HighSeason, AppSettings } from '../types';
 import { getStoredData, DEFAULT_SETTINGS } from '../services/dataService';
-import { Calendar, Clock, Car as CarIcon, Calculator, CheckCircle, Copy, RefreshCw, Zap, Tag, DollarSign, User } from 'lucide-react';
+import { Calendar, Clock, Car as CarIcon, Calculator, CheckCircle, Copy, RefreshCw, Zap, Tag, DollarSign, User, Fuel, Map, Bed } from 'lucide-react';
 
 const CalculatorPage = () => {
   const [cars, setCars] = useState<Car[]>([]);
@@ -20,16 +20,28 @@ const CalculatorPage = () => {
   // Options
   const [useDriver, setUseDriver] = useState(false);
   const [driverFeePerDay, setDriverFeePerDay] = useState(150000);
+  const [driverOvernightFee, setDriverOvernightFee] = useState(0); // New: Biaya Inap
+  
   const [deliveryFee, setDeliveryFee] = useState(0);
   const [discount, setDiscount] = useState(0);
   const [includeHighSeason, setIncludeHighSeason] = useState(true);
+
+  // New: Operational & Fuel
+  const [coverageFee, setCoverageFee] = useState(0);
+  const [includeFuel, setIncludeFuel] = useState(false);
+  const [distance, setDistance] = useState(0);
+  const [fuelRatio, setFuelRatio] = useState(10); // 1:10
+  const [fuelPrice, setFuelPrice] = useState(13250); // Default Pertamax approx
 
   // Results
   const [result, setResult] = useState({
       durationDays: 0,
       baseTotal: 0,
       driverTotal: 0,
+      driverOvernightTotal: 0,
       highSeasonTotal: 0,
+      coverageTotal: 0,
+      fuelTotal: 0,
       subTotal: 0,
       grandTotal: 0
   });
@@ -50,7 +62,13 @@ const CalculatorPage = () => {
 
   useEffect(() => {
       calculateEstimate();
-  }, [startDate, startTime, endDate, endTime, selectedCarId, packageType, useDriver, driverFeePerDay, deliveryFee, discount, includeHighSeason, cars, highSeasons]);
+  }, [
+      startDate, startTime, endDate, endTime, selectedCarId, packageType, 
+      useDriver, driverFeePerDay, driverOvernightFee,
+      deliveryFee, discount, includeHighSeason, 
+      coverageFee, includeFuel, distance, fuelRatio, fuelPrice,
+      cars, highSeasons
+  ]);
 
   const calculateEstimate = () => {
       if (!startDate || !endDate || !selectedCarId) return;
@@ -59,7 +77,10 @@ const CalculatorPage = () => {
       const end = new Date(`${endDate}T${endTime}`);
 
       if (end <= start) {
-          setResult({ durationDays: 0, baseTotal: 0, driverTotal: 0, highSeasonTotal: 0, subTotal: 0, grandTotal: 0 });
+          setResult({ 
+              durationDays: 0, baseTotal: 0, driverTotal: 0, driverOvernightTotal: 0,
+              highSeasonTotal: 0, coverageTotal: 0, fuelTotal: 0, subTotal: 0, grandTotal: 0 
+          });
           return;
       }
 
@@ -79,6 +100,7 @@ const CalculatorPage = () => {
 
       // Driver
       const driverTotal = useDriver ? (driverFeePerDay * days) : 0;
+      const driverOvernightTotal = useDriver ? Number(driverOvernightFee) : 0;
 
       // High Season
       let hsTotal = 0;
@@ -93,14 +115,26 @@ const CalculatorPage = () => {
           });
       }
 
-      const subTotal = baseTotal + driverTotal + hsTotal + deliveryFee;
+      // Fuel Calculation
+      let fuelTotal = 0;
+      if (includeFuel && distance > 0 && fuelRatio > 0) {
+          fuelTotal = (distance / fuelRatio) * fuelPrice;
+      }
+
+      // Coverage
+      const coverageTotal = Number(coverageFee);
+
+      const subTotal = baseTotal + driverTotal + driverOvernightTotal + hsTotal + deliveryFee + coverageTotal + fuelTotal;
       const grandTotal = subTotal - discount;
 
       setResult({
           durationDays: days,
           baseTotal,
           driverTotal,
+          driverOvernightTotal,
           highSeasonTotal: hsTotal,
+          coverageTotal,
+          fuelTotal,
           subTotal,
           grandTotal
       });
@@ -108,6 +142,8 @@ const CalculatorPage = () => {
 
   const handleCopy = () => {
       const car = cars.find(c => c.id === selectedCarId);
+      const fuelLiters = (distance > 0 && fuelRatio > 0) ? (distance / fuelRatio).toFixed(1) : '0';
+
       const text = `*Estimasi Harga Sewa - ${settings.companyName}*
 ---------------------------
 🚗 *Unit:* ${car?.name}
@@ -117,8 +153,11 @@ const CalculatorPage = () => {
 
 Rincian:
 - Sewa Unit: Rp ${result.baseTotal.toLocaleString('id-ID')}
-${result.driverTotal > 0 ? `- Driver: Rp ${result.driverTotal.toLocaleString('id-ID')}` : ''}
+${result.driverTotal > 0 ? `- Jasa Driver: Rp ${result.driverTotal.toLocaleString('id-ID')}` : ''}
+${result.driverOvernightTotal > 0 ? `- Inap Driver: Rp ${result.driverOvernightTotal.toLocaleString('id-ID')}` : ''}
 ${result.highSeasonTotal > 0 ? `- High Season: Rp ${result.highSeasonTotal.toLocaleString('id-ID')}` : ''}
+${result.coverageTotal > 0 ? `- Coverage Area: Rp ${result.coverageTotal.toLocaleString('id-ID')}` : ''}
+${result.fuelTotal > 0 ? `- Est. BBM (${distance}km, ${fuelLiters}L): Rp ${result.fuelTotal.toLocaleString('id-ID')}` : ''}
 ${deliveryFee > 0 ? `- Antar/Jemput: Rp ${deliveryFee.toLocaleString('id-ID')}` : ''}
 ${discount > 0 ? `- Diskon: (Rp ${discount.toLocaleString('id-ID')})` : ''}
 
@@ -138,15 +177,17 @@ _Harga dapat berubah sewaktu-waktu._`;
       <div className="flex justify-between items-center">
         <div>
           <h2 className="text-3xl font-bold text-slate-800">Kalkulator Estimasi</h2>
-          <p className="text-slate-500">Hitung cepat biaya sewa tanpa membuat booking.</p>
+          <p className="text-slate-500">Hitung cepat biaya sewa, BBM, dan operasional.</p>
         </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* INPUT FORM */}
           <div className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm space-y-6">
+              
+              {/* SECTION 1: UNIT & TIME */}
               <div className="space-y-4">
-                  <h3 className="font-bold text-slate-800 flex items-center gap-2 border-b pb-2"><CarIcon size={18} className="text-indigo-600"/> Pilih Kendaraan & Waktu</h3>
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2 border-b pb-2"><CarIcon size={18} className="text-indigo-600"/> Kendaraan & Waktu</h3>
                   
                   <div>
                       <label className="block text-xs font-bold text-slate-500 uppercase mb-1">Unit Mobil</label>
@@ -184,18 +225,31 @@ _Harga dapat berubah sewaktu-waktu._`;
                   </div>
               </div>
 
+              {/* SECTION 2: ADDONS */}
               <div className="space-y-4 pt-4 border-t border-slate-100">
                   <h3 className="font-bold text-slate-800 flex items-center gap-2 border-b pb-2"><Tag size={18} className="text-indigo-600"/> Tambahan & Biaya Lain</h3>
                   
-                  <div className="flex items-center justify-between bg-slate-50 p-3 rounded-lg border border-slate-200">
-                      <div className="flex items-center gap-2">
-                          <input type="checkbox" id="useDriver" className="w-5 h-5 rounded text-indigo-600" checked={useDriver} onChange={e => setUseDriver(e.target.checked)} />
-                          <label htmlFor="useDriver" className="text-sm font-bold text-slate-700 cursor-pointer">Pakai Driver?</label>
+                  {/* Driver Config */}
+                  <div className="bg-slate-50 p-3 rounded-lg border border-slate-200 space-y-3">
+                      <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                              <input type="checkbox" id="useDriver" className="w-5 h-5 rounded text-indigo-600" checked={useDriver} onChange={e => setUseDriver(e.target.checked)} />
+                              <label htmlFor="useDriver" className="text-sm font-bold text-slate-700 cursor-pointer">Pakai Driver?</label>
+                          </div>
+                          {useDriver && (
+                              <div className="w-32 relative">
+                                  <span className="absolute left-2 top-1.5 text-xs text-slate-400">Rp/Hari</span>
+                                  <input type="number" className="w-full border rounded p-1.5 pl-14 text-sm text-right font-bold" value={driverFeePerDay} onChange={e => setDriverFeePerDay(Number(e.target.value))} />
+                              </div>
+                          )}
                       </div>
                       {useDriver && (
-                          <div className="w-32 relative">
-                              <span className="absolute left-2 top-1.5 text-xs text-slate-400">Rp/Hari</span>
-                              <input type="number" className="w-full border rounded p-1.5 pl-14 text-sm text-right font-bold" value={driverFeePerDay} onChange={e => setDriverFeePerDay(Number(e.target.value))} />
+                          <div className="flex items-center justify-between pl-7 border-t border-slate-200 pt-2 animate-fade-in">
+                              <label className="text-xs font-bold text-slate-500 flex items-center gap-1"><Bed size={14}/> Biaya Inap (Total)</label>
+                              <div className="w-32 relative">
+                                  <span className="absolute left-2 top-1.5 text-xs text-slate-400">Rp</span>
+                                  <input type="number" className="w-full border rounded p-1.5 pl-10 text-sm text-right font-bold" value={driverOvernightFee} onChange={e => setDriverOvernightFee(Number(e.target.value))} />
+                              </div>
                           </div>
                       )}
                   </div>
@@ -214,6 +268,48 @@ _Harga dapat berubah sewaktu-waktu._`;
                   <div className="flex items-center gap-2">
                       <input type="checkbox" id="hs" className="w-4 h-4 rounded text-orange-500" checked={includeHighSeason} onChange={e => setIncludeHighSeason(e.target.checked)} />
                       <label htmlFor="hs" className="text-xs text-slate-600 cursor-pointer">Hitung High Season Otomatis (Jika tanggal masuk range)</label>
+                  </div>
+              </div>
+
+              {/* SECTION 3: FUEL & COVERAGE */}
+              <div className="space-y-4 pt-4 border-t border-slate-100">
+                  <h3 className="font-bold text-slate-800 flex items-center gap-2 border-b pb-2"><Fuel size={18} className="text-indigo-600"/> Operasional & BBM</h3>
+                  
+                  <div>
+                      <label className="block text-xs font-bold text-slate-500 uppercase mb-1 flex items-center gap-1"><Map size={14}/> Biaya Coverage Area / Luar Kota</label>
+                      <div className="relative">
+                          <span className="absolute left-3 top-2 text-sm text-slate-400 font-bold">Rp</span>
+                          <input type="number" className="w-full border rounded-lg p-2 pl-10 text-sm font-bold" value={coverageFee} onChange={e => setCoverageFee(Number(e.target.value))} placeholder="0" />
+                      </div>
+                  </div>
+
+                  <div className="bg-orange-50 p-3 rounded-lg border border-orange-200 space-y-3">
+                      <div className="flex items-center gap-2">
+                          <input type="checkbox" id="fuel" className="w-5 h-5 rounded text-orange-600" checked={includeFuel} onChange={e => setIncludeFuel(e.target.checked)} />
+                          <label htmlFor="fuel" className="text-sm font-bold text-slate-700 cursor-pointer">Hitung Estimasi BBM?</label>
+                      </div>
+                      
+                      {includeFuel && (
+                          <div className="grid grid-cols-3 gap-3 animate-fade-in">
+                              <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Jarak (KM)</label>
+                                  <input type="number" className="w-full border rounded p-1.5 text-sm" value={distance} onChange={e => setDistance(Number(e.target.value))} placeholder="0" />
+                              </div>
+                              <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Ratio (1:X)</label>
+                                  <input type="number" className="w-full border rounded p-1.5 text-sm" value={fuelRatio} onChange={e => setFuelRatio(Number(e.target.value))} placeholder="10" />
+                              </div>
+                              <div>
+                                  <label className="block text-[10px] font-bold text-slate-500 uppercase mb-1">Harga/Liter</label>
+                                  <input type="number" className="w-full border rounded p-1.5 text-sm" value={fuelPrice} onChange={e => setFuelPrice(Number(e.target.value))} placeholder="13500" />
+                              </div>
+                              <div className="col-span-3 text-right">
+                                  <p className="text-xs text-orange-700 font-bold">
+                                      Est. Konsumsi: {(distance && fuelRatio) ? (distance/fuelRatio).toFixed(1) : 0} Liter
+                                  </p>
+                              </div>
+                          </div>
+                      )}
                   </div>
               </div>
           </div>
@@ -248,10 +344,28 @@ _Harga dapat berubah sewaktu-waktu._`;
                                       <span>Rp {result.driverTotal.toLocaleString('id-ID')}</span>
                                   </div>
                               )}
+                              {result.driverOvernightTotal > 0 && (
+                                  <div className="flex justify-between text-slate-300">
+                                      <span>Biaya Inap Driver</span>
+                                      <span>Rp {result.driverOvernightTotal.toLocaleString('id-ID')}</span>
+                                  </div>
+                              )}
                               {result.highSeasonTotal > 0 && (
                                   <div className="flex justify-between text-orange-300">
                                       <span>Surcharge High Season</span>
                                       <span>Rp {result.highSeasonTotal.toLocaleString('id-ID')}</span>
+                                  </div>
+                              )}
+                              {result.coverageTotal > 0 && (
+                                  <div className="flex justify-between text-slate-300">
+                                      <span>Coverage Area</span>
+                                      <span>Rp {result.coverageTotal.toLocaleString('id-ID')}</span>
+                                  </div>
+                              )}
+                              {result.fuelTotal > 0 && (
+                                  <div className="flex justify-between text-orange-300">
+                                      <span>Estimasi BBM</span>
+                                      <span>Rp {result.fuelTotal.toLocaleString('id-ID')}</span>
                                   </div>
                               )}
                               {deliveryFee > 0 && (

@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { Partner, Booking, Car, User, Transaction } from '../types';
 import { getStoredData, setStoredData, exportToCSV, processCSVImport, mergeData, compressImage } from '../services/dataService';
 import { generateMonthlyReportPDF } from '../services/pdfService';
-import { Plus, Trash2, Phone, Edit2, X, Image as ImageIcon, History, Calendar, CheckCircle, Clock, Wallet, Download, Upload, FileText, Filter } from 'lucide-react';
+import { Plus, Trash2, Phone, Edit2, X, History, Calendar, CheckCircle, Wallet, Download, Upload, FileText, Filter, Camera } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -333,8 +333,8 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                                   </>
                               ) : (
                                   <div className="text-center text-slate-400">
-                                      <ImageIcon className="w-8 h-8 mx-auto mb-1" />
-                                      <span className="text-[10px]">Foto</span>
+                                      <Camera className="w-8 h-8 mx-auto mb-1" />
+                                      <span className="text-[10px]">Ambil Foto</span>
                                   </div>
                               )}
                               <input 

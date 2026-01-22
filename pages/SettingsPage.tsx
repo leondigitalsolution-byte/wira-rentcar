@@ -2,12 +2,10 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation } from 'react-router-dom';
 import { AppSettings, User, Driver, Partner } from '../types';
-import { getStoredData, setStoredData, DEFAULT_SETTINGS, compressImage, generateDummyData, clearAllData } from '../services/dataService';
+import { getStoredData, setStoredData, DEFAULT_SETTINGS, compressImage } from '../services/dataService';
 import { getUsers, saveUser, deleteUser } from '../services/authService';
-import { Save, Building, FileText, Upload, Trash2, List, Shield, UserCog, Check, X, MessageCircle, Eye, EyeOff, Image as ImageIcon, Plus, Edit, HelpCircle, Palette, Moon, Sun, MapPin, Database, Zap, Loader2, ChevronDown, ChevronUp, BookOpen, AlertCircle, Wifi, Link as LinkIcon } from 'lucide-react';
+import { FileText, Trash2, List, UserCog, X, MessageCircle, Image as ImageIcon, HelpCircle, Palette, Moon, Sun, ChevronDown, ChevronUp, BookOpen, Link as LinkIcon, Camera } from 'lucide-react';
 import { Logo } from '../components/Logo';
-import { db } from '../services/firebaseConfig';
-import { doc, setDoc } from 'firebase/firestore';
 
 interface Props {
     currentUser: User;
@@ -54,11 +52,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
   const [isSaved, setIsSaved] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
-  // System Tools Loading State
-  const [isProcessingSystem, setIsProcessingSystem] = useState(false);
-  const [connectionStatus, setConnectionStatus] = useState<'idle' | 'testing' | 'success' | 'failed'>('idle');
-  const [connectionError, setConnectionError] = useState('');
-
   // Users Form
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [username, setUsername] = useState('');
@@ -228,45 +221,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
       setSettings(prev => ({...prev, rentalPackages: prev.rentalPackages.filter(p => p !== pkg)}));
   };
 
-  // UPDATED ASYNC HANDLERS
-  const handleDummyData = async () => {
-      if(confirm('Ingin mengisi sistem dengan data dummy untuk percobaan? (Data lama akan tertimpa)')) {
-          setIsProcessingSystem(true);
-          await generateDummyData();
-      }
-  };
-
-  const handleClearData = async () => {
-      if(confirm('BAHAYA: Apakah Anda yakin ingin MENGHAPUS SELURUH DATA operasional (Mobil, Driver, Booking, Transaksi)? Tindakan ini tidak dapat dibatalkan.')) {
-          setIsProcessingSystem(true);
-          await clearAllData();
-      }
-  };
-
-  const handleTestConnection = async () => {
-      setConnectionStatus('testing');
-      setConnectionError('');
-      try {
-          if (!db) throw new Error("Firebase SDK belum diinisialisasi.");
-          // Try writing a timestamp to a dedicated ping document
-          await setDoc(doc(db, 'system', 'connection_ping'), {
-              last_checked: new Date().toISOString(),
-              checked_by: currentUser.username
-          });
-          setConnectionStatus('success');
-      } catch (e: any) {
-          console.error("Connection Test Failed:", e);
-          setConnectionStatus('failed');
-          if (e.code === 'permission-denied') {
-              setConnectionError("Izin Ditolak (Permission Denied). Aturan Firebase belum diatur ke Publik.");
-          } else if (e.code === 'unavailable') {
-              setConnectionError("Offline / Tidak ada koneksi internet.");
-          } else {
-              setConnectionError(e.message || "Gagal terhubung.");
-          }
-      }
-  };
-
   const THEME_OPTIONS = [
       { id: 'red', name: 'Merah (Default)', bg: 'bg-red-600' },
       { id: 'blue', name: 'Biru', bg: 'bg-blue-600' },
@@ -290,11 +244,9 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
           {isSuperAdmin && (
               <>
                 <button onClick={() => setActiveTab('general')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'general' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Umum & Invoice</button>
-                <button onClick={() => setActiveTab('gps')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'gps' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Integrasi GPS</button>
                 <button onClick={() => setActiveTab('appearance')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'appearance' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Tampilan</button>
                 <button onClick={() => setActiveTab('master')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'master' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Kategori & Paket</button>
                 <button onClick={() => setActiveTab('users')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'users' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Manajemen User</button>
-                <button onClick={() => setActiveTab('tools')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'tools' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Alat Sistem</button>
               </>
           )}
           <button onClick={() => setActiveTab('help')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'help' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Pusat Bantuan</button>
@@ -302,139 +254,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           
-          {/* SYSTEM TOOLS TAB */}
-          {activeTab === 'tools' && isSuperAdmin && (
-              <div className="space-y-8 animate-fade-in">
-                  <div className="flex items-center gap-3 border-b dark:border-slate-700 pb-4">
-                      <Database size={32} className="text-indigo-600" />
-                      <div>
-                          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Alat Sistem & Database</h3>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">Kelola database lokal dan reset data operasional.</p>
-                      </div>
-                  </div>
-
-                  {/* FIREBASE CONNECTION TESTER */}
-                  <div className="p-6 bg-slate-50 dark:bg-slate-700 rounded-xl border border-slate-200 dark:border-slate-600">
-                      <div className="flex items-center justify-between mb-4">
-                          <div className="flex items-center gap-3">
-                              <div className={`p-2 rounded-lg text-white ${connectionStatus === 'success' ? 'bg-green-600' : connectionStatus === 'failed' ? 'bg-red-600' : 'bg-blue-600'}`}>
-                                  <Wifi size={20}/>
-                              </div>
-                              <div>
-                                  <h4 className="font-bold text-slate-800 dark:text-white">Status Koneksi Cloud (Firebase)</h4>
-                                  <p className="text-xs text-slate-500 dark:text-slate-400">Pastikan aplikasi terhubung agar data tersimpan aman.</p>
-                              </div>
-                          </div>
-                          <button 
-                              onClick={handleTestConnection} 
-                              disabled={connectionStatus === 'testing'}
-                              className="px-4 py-2 text-sm font-bold bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-500 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors disabled:opacity-50"
-                          >
-                              {connectionStatus === 'testing' ? 'Sedang Mengecek...' : 'Cek Koneksi'}
-                          </button>
-                      </div>
-                      
-                      {connectionStatus === 'success' && (
-                          <div className="bg-green-100 border border-green-200 text-green-800 text-sm p-3 rounded-lg flex items-center gap-2">
-                              <Check size={16}/> Koneksi Sukses! Data tersinkronisasi dengan baik.
-                          </div>
-                      )}
-                      
-                      {connectionStatus === 'failed' && (
-                          <div className="bg-red-50 border border-red-200 text-red-800 text-sm p-3 rounded-lg space-y-2">
-                              <div className="flex items-center gap-2 font-bold"><AlertCircle size={16}/> Koneksi Gagal!</div>
-                              <p>{connectionError}</p>
-                              {connectionError.includes("Izin Ditolak") && (
-                                  <div className="text-xs bg-white p-2 rounded border border-red-100 mt-2">
-                                      <strong>Solusi:</strong> Buka Firebase Console {'>'} Firestore Database {'>'} Rules. Ubah menjadi:
-                                      <code className="block bg-slate-100 p-1 mt-1 font-mono text-slate-700">allow read, write: if true;</code>
-                                  </div>
-                              )}
-                          </div>
-                      )}
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                      <div className="p-6 bg-indigo-50 dark:bg-indigo-900/10 rounded-xl border border-indigo-100 dark:border-indigo-900/30">
-                          <div className="flex items-center gap-3 mb-4">
-                              <div className="p-2 bg-indigo-600 text-white rounded-lg"><Zap size={20}/></div>
-                              <h4 className="font-bold text-indigo-900 dark:text-indigo-100">Mode Percobaan</h4>
-                          </div>
-                          <p className="text-sm text-indigo-700 dark:text-indigo-300 mb-4">Isi sistem dengan data dummy (Mobil, Driver, Booking, Transaksi) untuk mencoba fitur aplikasi dengan cepat.</p>
-                          <button 
-                            onClick={handleDummyData} 
-                            disabled={isProcessingSystem}
-                            className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-indigo-700 transition-colors w-full flex items-center justify-center gap-2 disabled:opacity-70"
-                          >
-                              {isProcessingSystem ? <Loader2 size={18} className="animate-spin"/> : null}
-                              {isProcessingSystem ? 'Sedang Memproses...' : 'Buatkan Data Dummy'}
-                          </button>
-                      </div>
-
-                      <div className="p-6 bg-red-50 dark:bg-red-900/10 rounded-xl border border-red-100 dark:border-red-900/30">
-                          <div className="flex items-center gap-3 mb-4">
-                              <div className="p-2 bg-red-600 text-white rounded-lg"><Trash2 size={20}/></div>
-                              <h4 className="font-bold text-red-900 dark:text-red-100">Reset Total</h4>
-                          </div>
-                          <p className="text-sm text-red-700 dark:text-red-300 mb-4">Hapus seluruh data operasional untuk memulai dari awal (Kosong). Pengaturan profil perusahaan dan akun user akan tetap aman.</p>
-                          <button 
-                            onClick={handleClearData} 
-                            disabled={isProcessingSystem}
-                            className="bg-red-600 text-white px-6 py-2 rounded-lg font-bold hover:bg-red-700 transition-colors w-full flex items-center justify-center gap-2 disabled:opacity-70"
-                          >
-                              {isProcessingSystem ? <Loader2 size={18} className="animate-spin"/> : null}
-                              {isProcessingSystem ? 'Sedang Menghapus...' : 'Hapus Seluruh Data'}
-                          </button>
-                      </div>
-                  </div>
-              </div>
-          )}
-
-          {/* GPS INTEGRATION TAB */}
-          {activeTab === 'gps' && isSuperAdmin && (
-              <div className="space-y-6 animate-fade-in">
-                   <div className="flex items-center gap-3 border-b dark:border-slate-700 pb-4">
-                      <MapPin size={32} className="text-indigo-600" />
-                      <div>
-                          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Integrasi GPS Tracker</h3>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">Hubungkan aplikasi dengan server GPS (Traccar/Custom) untuk tracking real-time.</p>
-                      </div>
-                  </div>
-
-                  <form onSubmit={handleSave} className="space-y-4">
-                      <div>
-                          <label className="block text-sm font-medium mb-1 dark:text-slate-200">Penyedia Layanan GPS</label>
-                          <select name="gpsProvider" value={settings.gpsProvider} onChange={handleChange} className="w-full border rounded p-2">
-                              <option value="Simulation">Mode Simulasi (Demo)</option>
-                              <option value="Traccar">Traccar (Open Source)</option>
-                              <option value="Custom">Custom API</option>
-                          </select>
-                          <p className="text-xs text-slate-500 mt-1 dark:text-slate-400">
-                              {settings.gpsProvider === 'Simulation' ? 'Menggunakan data acak untuk demo.' : 
-                               settings.gpsProvider === 'Traccar' ? 'Menggunakan API Traccar untuk mengambil posisi device.' : 'Menggunakan endpoint JSON kustom.'}
-                          </p>
-                      </div>
-
-                      {settings.gpsProvider !== 'Simulation' && (
-                          <>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 dark:text-slate-200">URL Server API</label>
-                                <input name="gpsApiUrl" value={settings.gpsApiUrl || ''} onChange={handleChange} className="w-full border rounded p-2" placeholder="https://demo.traccar.org/api" />
-                            </div>
-                            <div>
-                                <label className="block text-sm font-medium mb-1 dark:text-slate-200">API Token / Auth</label>
-                                <input name="gpsApiToken" type="password" value={settings.gpsApiToken || ''} onChange={handleChange} className="w-full border rounded p-2" placeholder="Bearer Token atau Basic Auth" />
-                            </div>
-                          </>
-                      )}
-
-                      <div className="pt-4 border-t dark:border-slate-700">
-                          <button type="submit" className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold">Simpan Konfigurasi GPS</button>
-                      </div>
-                  </form>
-              </div>
-          )}
-
           {/* HELP TAB */}
           {activeTab === 'help' && (
               <div className="space-y-6 animate-fade-in">
@@ -485,10 +304,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                       <FaqItem 
                         question="Bagaimana cara menambah Unit Mobil?" 
                         answer="Masuk ke menu 'Armada Mobil', klik tombol 'Tambah Mobil'. Isi data mobil, plat nomor, upload foto, dan tentukan harga sewa dasar. Anda juga bisa mengaitkan mobil dengan Mitra pemilik jika mobil tersebut titipan." 
-                      />
-                      <FaqItem 
-                        question="Apa fungsi ID Perangkat GPS?" 
-                        answer="Jika mobil dipasangi GPS Tracker yang terintegrasi (misal Traccar), masukkan IMEI/ID perangkat di data mobil. Ini memungkinkan sistem menampilkan lokasi real-time di menu 'Tracking Unit'." 
                       />
                       <FaqItem 
                         question="Bagaimana cara menghitung gaji driver?" 
@@ -571,7 +386,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                          <Logo src={settings.logoUrl} />
                      </div>
                      <div>
-                         <label className="block text-sm font-medium mb-2 dark:text-slate-200">Ganti Logo (Otomatis Dikompres)</label>
+                         <label className="block text-sm font-medium mb-2 dark:text-slate-200">Ganti Logo (Upload/Kamera)</label>
                          <input 
                              disabled={!isSuperAdmin} 
                              type="file" 
@@ -726,8 +541,8 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                       </>
                                   ) : (
                                       <div className="text-center text-slate-400 dark:text-slate-500 pointer-events-none">
-                                          <ImageIcon className="w-8 h-8 mx-auto mb-1" />
-                                          <span className="text-[9px] font-bold">Upload</span>
+                                          <Camera className="w-8 h-8 mx-auto mb-1" />
+                                          <span className="text-[9px] font-bold">Ambil Foto</span>
                                       </div>
                                   )}
                                   <input 

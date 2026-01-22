@@ -1,5 +1,5 @@
 
-import { jsPDF } from "jspdf";
+import jsPDF from "jspdf";
 import { Booking, Car, AppSettings, Transaction, Partner, Driver, BookingStatus } from "../types";
 import { getStoredData, DEFAULT_SETTINGS } from "./dataService";
 
@@ -220,7 +220,15 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
     // --- STAMP LUNAS ---
     if (isActuallyLunas) {
         doc.saveGraphicsState();
-        doc.setGState(new doc.GState({ opacity: 0.3 }));
+        try {
+            // Safe casting for GState usage
+            const GState = (doc as any).GState;
+            if (GState) {
+                doc.setGState(new GState({ opacity: 0.3 }));
+            }
+        } catch(e) {
+            // fallback if GState fails
+        }
         doc.setTextColor(0, 150, 0);
         doc.setFontSize(40);
         doc.setFont("helvetica", "bold");
@@ -230,12 +238,6 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
         // Rotate text
         doc.text("LUNAS", stampX, stampY, { align: 'center', angle: 30 });
         
-        // Draw border for stamp
-        doc.setDrawColor(0, 150, 0);
-        doc.setLineWidth(1);
-        // Approximate box based on rotation is hard in simple jsPDF without advanced math, 
-        // so we'll just put a circle or simple box if needed, or leave it as text. 
-        // Text is usually enough for a "Stamp" effect.
         doc.restoreGraphicsState();
     }
 

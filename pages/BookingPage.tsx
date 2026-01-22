@@ -1,3 +1,4 @@
+
 import { 
   Search, Plus, Trash2, MessageCircle, AlertTriangle, Calendar, 
   User as UserIcon, Zap, CheckCircle, MapPin, Shield, 
@@ -5,7 +6,7 @@ import {
   Gauge, Car as CarIcon, Edit2, FileSpreadsheet, ChevronDown, 
   Filter, Info, Send, Wallet, CheckSquare, Clock as ClockIcon,
   DollarSign, CreditCard, Tag, ArrowRight, History, XCircle,
-  Printer
+  Camera, Printer
 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+// @ts-ignore
 import { useLocation } from 'react-router-dom';
 import { AppSettings, User, Driver, Partner } from '../types';
 import { getStoredData, setStoredData, DEFAULT_SETTINGS, compressImage } from '../services/dataService';
@@ -564,7 +565,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                 <select value={role} onChange={e => setRole(e.target.value)} className="w-full border rounded p-2">
                                     <option value="admin">Admin / Staff</option>
                                     <option value="driver">Driver</option>
-                                    {/* <option value="partner">Investor (Mitra)</option> */} {/* Hidden Partner */}
+                                    <option value="partner">Investor (Mitra)</option>
                                     <option value="superadmin">Super Admin</option>
                                 </select>
                             </div>
@@ -587,8 +588,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                             )}
 
-                            {/* Hidden Partner Link Logic */}
-                            {/* {role === 'partner' && (
+                            {role === 'partner' && (
                                 <div className="md:col-span-2 bg-purple-50 border border-purple-100 p-3 rounded-lg animate-in fade-in slide-in-from-top-2">
                                     <label className="block text-xs font-bold uppercase text-purple-800 mb-1 flex items-center gap-1">
                                         <LinkIcon size={12}/> Hubungkan dengan Data Investor
@@ -603,7 +603,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                         *User ini hanya akan melihat unit mobil dan laporan keuangan milik Investor yang dipilih.
                                     </p>
                                 </div>
-                            )} */}
+                            )}
 
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Username</label>

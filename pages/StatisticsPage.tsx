@@ -364,8 +364,8 @@ const StatisticsPage = () => {
                   </div>
               </div>
               
-              {/* Hidden Ownership Stats */}
-              {/* <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-w-0">
+              {/* Restored Ownership Stats */}
+              <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-w-0">
                   <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><ShieldCheck size={18}/> Transaksi Perusahaan vs Investor</h4>
                   <div style={{ width: '100%', height: 300 }}>
                       <ResponsiveContainer width="100%" height="100%">
@@ -385,7 +385,7 @@ const StatisticsPage = () => {
                           </PieChart>
                       </ResponsiveContainer>
                   </div>
-              </div> */}
+              </div>
           </div>
           <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-200 min-w-0">
               <h4 className="font-bold text-slate-700 mb-4 flex items-center gap-2"><UserIcon size={18}/> Performa Driver (Jumlah Trip)</h4>

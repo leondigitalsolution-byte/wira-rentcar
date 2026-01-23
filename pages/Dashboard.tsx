@@ -5,6 +5,7 @@ import { Booking, BookingStatus, Car, PaymentStatus, AppSettings, Transaction } 
 import { getStoredData, DEFAULT_SETTINGS } from '../services/dataService';
 import { getCurrentUser } from '../services/authService';
 import { AlertCircle, CheckCircle, TrendingUp, Car as CarIcon, Clock, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Map, Grid, User as UserIcon, Wallet, PieChart, UserCircle, Settings, Users, Percent, Filter, Navigation, CalendarRange, TrendingDown, Receipt, CalendarClock, UserCog, X, Calculator } from 'lucide-react';
+// @ts-ignore
 import { Link, useNavigate } from 'react-router-dom';
 import { Logo } from '../components/Logo';
 
@@ -203,8 +204,8 @@ const Dashboard = () => {
               ) : isPartner ? (
                   <>
                     <MenuItem to="/fleet" icon={CarIcon} label="Unit Saya" />
-                    {/* <MenuItem to="/partners" icon={Wallet} label="Pendapatan" /> Hidden */}
-                    {/* <MenuItem to="/expenses" icon={Receipt} label="Riwayat" /> Hidden */}
+                    <MenuItem to="/partners" icon={Wallet} label="Pendapatan" />
+                    <MenuItem to="/expenses" icon={Receipt} label="Riwayat" />
                     
                     <MenuItem to="/settings" icon={Settings} label="Akun" />
                   </>
@@ -234,8 +235,7 @@ const Dashboard = () => {
                   </div>
                   <div className="grid grid-cols-3 gap-4">
                       <MenuItem to="/drivers" icon={UserCircle} label="Driver" onClick={() => setIsMoreMenuOpen(false)} />
-                      {/* Hidden Partner Menu */}
-                      {/* <MenuItem to="/partners" icon={UserCog} label="Mitra" onClick={() => setIsMoreMenuOpen(false)} /> */}
+                      <MenuItem to="/partners" icon={UserCog} label="Mitra" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/high-season" icon={CalendarClock} label="Highseason" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/settings" icon={Settings} label="Setting" onClick={() => setIsMoreMenuOpen(false)} />
                   </div>

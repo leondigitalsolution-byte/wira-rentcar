@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+// @ts-ignore
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
 import { LayoutDashboard, Car, CalendarRange, Users, Wallet, Menu, X, UserCog, CalendarClock, Settings, LogOut, MapPin, Receipt, PieChart, UserCircle, Loader2, RefreshCw, FileText, Palette, List, HelpCircle, Map, ChevronLeft, Calculator } from 'lucide-react';
 import { initializeData, getStoredData, DEFAULT_SETTINGS } from './services/dataService';
@@ -84,7 +85,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
       switch(location.pathname) {
           case '/booking': return 'Booking';
           case '/fleet': return 'Armada';
-          // case '/partners': return isPartner ? 'Saldo Saya' : 'Investor'; // Hidden
+          case '/partners': return isPartner ? 'Saldo Saya' : 'Investor';
           case '/drivers': return isDriver ? 'Profil' : 'Driver';
           case '/customers': return 'Pelanggan';
           case '/expenses': return isDriver ? 'Reimbursement' : 'Keuangan';
@@ -145,8 +146,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                         <SidebarItem to="/fleet" icon={Car} label="Armada Mobil" />
                         <SidebarItem to="/customers" icon={Users} label="Data Pelanggan" />
                         <SidebarItem to="/drivers" icon={UserCircle} label="Data Driver" />
-                        {/* Hidden Partner Menu */}
-                        {/* <SidebarItem to="/partners" icon={UserCog} label="Investor & Rekanan" /> */}
+                        <SidebarItem to="/partners" icon={UserCog} label="Investor & Rekanan" />
                         <SidebarItem to="/high-season" icon={CalendarClock} label="High Season" />
                     </div>
                 </div>
@@ -180,8 +180,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
               </div>
           )}
 
-          {/* Hidden Partner Menu Block */}
-          {/* {isPartner && (
+          {isPartner && (
               <div className="mb-6">
                 <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Menu Investor</h3>
                 <div className="space-y-1">
@@ -191,7 +190,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                     <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
                 </div>
               </div>
-          )} */}
+          )}
         </nav>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-700">
@@ -234,7 +233,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                       <div className="absolute right-0 top-full mt-2 w-48 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 py-1 animate-in fade-in zoom-in-95 duration-200">
                           <div className="px-4 py-3 border-b border-slate-100 dark:border-slate-700">
                               <p className="text-sm font-bold text-slate-800 dark:text-white truncate">{user.name}</p>
-                              <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{user.role}</p>
+                              <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{user.role === 'partner' ? 'Investor' : user.role}</p>
                           </div>
                           <Link to="/settings" className="block px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => setIsProfileMenuOpen(false)}>Pengaturan</Link>
                           <button onClick={onLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Keluar</button>
@@ -283,9 +282,18 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                 <BottomNavItem to="/settings" icon={Settings} label="Akun" />
               </>
           ) : (
-              // Partner Hidden
+              // Partner
               <>
                 <BottomNavItem to="/" icon={LayoutDashboard} label="Home" />
+                <BottomNavItem to="/partners" icon={Wallet} label="Pendapatan" />
+                
+                <div className="relative -top-5 mx-1 flex flex-col items-center justify-center">
+                    <Link to="/" className="flex items-center justify-center w-16 h-16 bg-red-600 rounded-full shadow-lg border-4 border-slate-100 dark:border-slate-800 text-white hover:bg-red-700 transition-transform active:scale-95">
+                        <LayoutDashboard size={28} strokeWidth={2} />
+                    </Link>
+                </div>
+
+                <BottomNavItem to="/expenses" icon={List} label="Riwayat" />
                 <BottomNavItem to="/settings" icon={Settings} label="Akun" />
               </>
           )}
@@ -347,10 +355,9 @@ const App = () => {
             user && (user.role === 'admin' || user.role === 'superadmin' || user.role === 'partner') ? <AppLayout user={user} onLogout={handleLogout}><FleetPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
-        {/* Hidden Route */}
-        {/* <Route path="/partners" element={
+        <Route path="/partners" element={
             user ? <AppLayout user={user} onLogout={handleLogout}><PartnersPage currentUser={user}/></AppLayout> : <Navigate to="/" />
-        } /> */}
+        } />
         
         <Route path="/drivers" element={
             user ? <AppLayout user={user} onLogout={handleLogout}><DriversPage currentUser={user}/></AppLayout> : <Navigate to="/" />

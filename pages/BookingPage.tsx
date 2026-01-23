@@ -6,7 +6,7 @@ import {
   Gauge, Car as CarIcon, Edit2, FileSpreadsheet, ChevronDown, 
   Filter, Info, Send, Wallet, CheckSquare, Clock as ClockIcon,
   DollarSign, CreditCard, Tag, ArrowRight, History, XCircle,
-  Camera, Printer, ChevronLeft, ChevronRight, LayoutList, GanttChart
+  Camera, Printer
 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -20,7 +20,7 @@ interface Props {
 
 const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'timeline'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   
   const [cars, setCars] = useState<Car[]>([]);
@@ -28,10 +28,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [highSeasons, setHighSeasons] = useState<HighSeason[]>([]);
-
-  // Timeline State
-  const [timelineDate, setTimelineDate] = useState(new Date());
-  const [timelineSearch, setTimelineSearch] = useState(''); // Added Search State
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
@@ -286,18 +282,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       }
   };
 
-  // Triggered when clicking a timeline cell
-  const handleTimelineCellClick = (carId: string, date: Date) => {
-      resetForm();
-      const dateStr = date.toISOString().split('T')[0];
-      setSelectedCarId(carId);
-      setStartDate(dateStr);
-      setStartTime('08:00');
-      setEndDate(dateStr); // Default 1 day duration
-      setEndTime('20:00');
-      setActiveTab('create');
-  };
-
   const handleCreateBooking = (e: React.FormEvent) => {
     e.preventDefault();
     if (carError || driverError) return;
@@ -457,33 +441,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       }
   };
 
-  // Timeline Helper Functions
-  const getDaysInMonth = (date: Date) => {
-      const year = date.getFullYear();
-      const month = date.getMonth();
-      const daysInMonth = new Date(year, month + 1, 0).getDate();
-      const days = [];
-      for (let i = 1; i <= daysInMonth; i++) {
-          days.push(new Date(year, month, i));
-      }
-      return days;
-  };
-
-  const getTimelineBookings = (carId: string) => {
-      const year = timelineDate.getFullYear();
-      const month = timelineDate.getMonth();
-      const firstDayOfMonth = new Date(year, month, 1);
-      const lastDayOfMonth = new Date(year, month + 1, 0);
-
-      return bookings.filter(b => {
-          if (b.carId !== carId || b.status === BookingStatus.CANCELLED) return false;
-          const start = new Date(b.startDate);
-          const end = new Date(b.endDate);
-          // Check overlapping
-          return start <= lastDayOfMonth && end >= firstDayOfMonth;
-      });
-  };
-
   const selectedCarData = cars.find(c => c.id === selectedCarId);
 
   // Get upcoming bookings for selected car to show schedule
@@ -501,12 +458,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       [BookingStatus.MAINTENANCE]: 5
   };
 
-  // Filter Cars for Timeline based on Search
-  const filteredTimelineCars = cars.filter(c => 
-      c.name.toLowerCase().includes(timelineSearch.toLowerCase()) || 
-      c.plate.toLowerCase().includes(timelineSearch.toLowerCase())
-  );
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -514,16 +465,9 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
           <h2 className="text-3xl font-bold text-slate-800">Booking & Jadwal</h2>
           <p className="text-slate-500 font-medium">Sistem anti-bentrok jadwal otomatis 24/7.</p>
         </div>
-        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
-           <button onClick={() => setActiveTab('list')} className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
-               <LayoutList size={16}/> Daftar
-           </button>
-           <button onClick={() => setActiveTab('timeline')} className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'timeline' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
-               <GanttChart size={16}/> Timeline
-           </button>
-           <button onClick={() => setActiveTab('create')} className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'create' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
-               <Plus size={16}/> Input Baru
-           </button>
+        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
+           <button onClick={() => setActiveTab('list')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>Daftar</button>
+           <button onClick={() => setActiveTab('create')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'create' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>Input Baru</button>
         </div>
       </div>
 
@@ -533,137 +477,9 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         </div>
       )}
 
-      {/* TIMELINE VIEW */}
-      {activeTab === 'timeline' && (
-          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)]">
-              {/* Header Timeline Controls */}
-              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center bg-slate-50 gap-4 flex-shrink-0">
-                  <div className="flex items-center gap-2">
-                      <button onClick={() => setTimelineDate(new Date(timelineDate.setMonth(timelineDate.getMonth() - 1)))} className="p-2 bg-white border rounded-lg hover:bg-slate-50"><ChevronLeft size={16}/></button>
-                      <h3 className="font-bold text-slate-800 w-40 text-center">{timelineDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</h3>
-                      <button onClick={() => setTimelineDate(new Date(timelineDate.setMonth(timelineDate.getMonth() + 1)))} className="p-2 bg-white border rounded-lg hover:bg-slate-50"><ChevronRight size={16}/></button>
-                  </div>
-                  
-                  {/* Search Filter for Timeline */}
-                  <div className="relative w-full sm:w-64">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                          type="text" 
-                          placeholder="Cari Unit (Nama/Plat)..." 
-                          className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                          value={timelineSearch}
-                          onChange={e => setTimelineSearch(e.target.value)}
-                      />
-                  </div>
-
-                  <div className="flex items-center gap-3 text-xs font-medium">
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-500"></span> Booked</span>
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-500"></span> Active</span>
-                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-400"></span> Selesai</span>
-                  </div>
-              </div>
-              
-              {/* Scrollable Container */}
-              <div className="overflow-auto relative custom-scrollbar flex-1">
-                  <div className="min-w-[1000px] inline-block w-full">
-                      {/* Calendar Header (Sticky Top) */}
-                      <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-sm">
-                          {/* Unit Armada Label (Sticky Corner) */}
-                          <div className="w-48 p-3 font-bold text-xs text-slate-500 uppercase flex-shrink-0 sticky left-0 top-0 bg-slate-50 z-30 border-r border-slate-200 flex items-center">
-                              Unit Armada
-                          </div>
-                          
-                          {/* Dates */}
-                          <div className="flex flex-1">
-                              {getDaysInMonth(timelineDate).map(d => (
-                                  <div key={d.getDate()} className={`flex-1 min-w-[30px] text-center border-r border-slate-100 py-2 text-xs font-medium ${d.getDay() === 0 ? 'bg-red-50 text-red-600' : ''}`}>
-                                      {d.getDate()}
-                                  </div>
-                              ))}
-                          </div>
-                      </div>
-
-                      {/* Timeline Rows */}
-                      {filteredTimelineCars.map(car => (
-                          <div key={car.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 relative h-16 group">
-                              {/* Car Info (Sticky Left) */}
-                              <div className="w-48 p-3 flex items-center gap-3 border-r border-slate-200 bg-white flex-shrink-0 sticky left-0 z-10 group-hover:bg-slate-50 transition-colors">
-                                  {car.image ? (
-                                      <img src={car.image} className="w-10 h-10 rounded-lg object-cover" />
-                                  ) : (
-                                      <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"><CarIcon size={16} className="text-slate-400"/></div>
-                                  )}
-                                  <div>
-                                      <p className="text-xs font-bold text-slate-800 truncate w-24">{car.name}</p>
-                                      <p className="text-[10px] text-slate-500">{car.plate}</p>
-                                  </div>
-                              </div>
-                              
-                              {/* Grid & Bars */}
-                              <div className="flex flex-1 relative">
-                                  {/* Grid Lines + Clickable Cells */}
-                                  {getDaysInMonth(timelineDate).map(d => (
-                                      <div 
-                                          key={d.getDate()} 
-                                          className={`flex-1 min-w-[30px] border-r border-slate-100 h-full ${d.getDay() === 0 ? 'bg-red-50/30' : ''} hover:bg-indigo-50 cursor-pointer transition-colors`}
-                                          onClick={() => handleTimelineCellClick(car.id, d)}
-                                          title={`Buat booking untuk ${car.name} tanggal ${d.getDate()}`}
-                                      ></div>
-                                  ))}
-
-                                  {/* Booking Bars (Overlay) */}
-                                  {getTimelineBookings(car.id).map(b => {
-                                      const daysInMonth = new Date(timelineDate.getFullYear(), timelineDate.getMonth() + 1, 0).getDate();
-                                      const start = new Date(b.startDate);
-                                      const end = new Date(b.endDate);
-                                      
-                                      const monthStart = new Date(timelineDate.getFullYear(), timelineDate.getMonth(), 1);
-                                      
-                                      let startDay = start.getDate();
-                                      let duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                                      
-                                      if (start < monthStart) {
-                                          const offset = Math.ceil((monthStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                                          duration -= offset;
-                                          startDay = 1;
-                                      }
-
-                                      if (startDay + duration > daysInMonth + 1) {
-                                          duration = (daysInMonth + 1) - startDay;
-                                      }
-
-                                      if (duration <= 0) return null;
-
-                                      const leftPos = ((startDay - 1) / daysInMonth) * 100;
-                                      const width = (duration / daysInMonth) * 100;
-
-                                      const colorClass = b.status === 'Active' ? 'bg-green-500' : b.status === 'Completed' ? 'bg-slate-400' : 'bg-blue-500';
-
-                                      return (
-                                          <div 
-                                              key={b.id}
-                                              className={`absolute top-3 bottom-3 rounded-md shadow-sm text-[10px] text-white flex items-center justify-center font-bold px-1 overflow-hidden whitespace-nowrap cursor-pointer z-0 hover:z-20 hover:scale-105 transition-transform ${colorClass}`}
-                                              style={{ left: `${leftPos}%`, width: `${width}%` }}
-                                              onClick={(e) => { e.stopPropagation(); handleEdit(b); }}
-                                              title={`${b.customerName} (${new Date(b.startDate).toLocaleDateString('id-ID')} - ${new Date(b.endDate).toLocaleDateString('id-ID')})`}
-                                          >
-                                              {b.customerName}
-                                          </div>
-                                      );
-                                  })}
-                              </div>
-                          </div>
-                      ))}
-                  </div>
-              </div>
-          </div>
-      )}
-
-      {activeTab === 'create' && (
+      {activeTab === 'create' ? (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-visible">
              <form onSubmit={handleCreateBooking} className="grid grid-cols-1 lg:grid-cols-[1.2fr_2fr] min-h-[600px]">
-                {/* ... existing form content ... */}
-                {/* Copying the exact content from previous file but ensuring no changes lost */}
                 <div className="bg-slate-50/50 p-6 border-r border-slate-100 space-y-6">
                     <section className="space-y-4">
                         <h4 className="font-black text-slate-800 flex items-center gap-2 border-b pb-3 uppercase tracking-widest text-[10px]"><ClockIcon size={16} className="text-indigo-600"/> Waktu & Unit</h4>
@@ -889,9 +705,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                 </div>
              </form>
         </div>
-      )}
-
-      {activeTab === 'list' && (
+      ) : (
         <div className="space-y-4">
             <div className="p-5 bg-white border border-slate-200 rounded-2xl flex flex-wrap gap-4 items-center shadow-sm">
                 <span className="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-tighter"><Filter size={18} className="text-indigo-600"/> Filter Data:</span>
@@ -949,16 +763,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                             <div className={`absolute left-0 top-0 bottom-0 w-2 ${getLeftStripeColor(b.status)}`}></div>
                             <div className="flex flex-col md:flex-row justify-between items-center gap-6 w-full">
                                 <div className="flex items-center gap-5 w-full">
-                                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-200">
-                                        {car?.image ? (
-                                            <img src={car.image} className="w-full h-full object-cover" alt={car.name} />
-                                        ) : (
-                                            <CarIcon size={32} className="text-slate-400"/>
-                                        )}
+                                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0">
+                                        <CarIcon size={32} className="text-slate-400"/>
                                     </div>
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center gap-3">
-                                            <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{car?.name || 'Unknown Car'} <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-[10px] font-black border border-slate-200 ml-2">{car?.plate || '-'}</span></h4>
+                                            <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{car?.name} <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-[10px] font-black border border-slate-200 ml-2">{car?.plate}</span></h4>
                                         </div>
                                         <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500">
                                             <span className="flex items-center gap-1.5"><Calendar size={14} className="text-indigo-600"/> {new Date(b.startDate).toLocaleDateString('id-ID')}</span>
@@ -1015,18 +825,10 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                     </button>
                                 )}
                                 <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block"></div>
-                                <button 
-                                    onClick={() => { if(car) window.open(generateWhatsAppLink(b, car), '_blank') }} 
-                                    disabled={!car}
-                                    className="px-3 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors border border-green-100 flex items-center gap-2 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
+                                <button onClick={() => window.open(generateWhatsAppLink(b, car!), '_blank')} className="px-3 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors border border-green-100 flex items-center gap-2 text-xs font-bold">
                                     <MessageCircle size={16}/> <span className="hidden md:inline">Kirim WA</span>
                                 </button>
-                                <button 
-                                    onClick={() => { if(car) generateInvoicePDF(b, car) }} 
-                                    disabled={!car}
-                                    className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors border border-blue-100 flex items-center gap-2 text-xs font-bold disabled:opacity-50 disabled:cursor-not-allowed"
-                                >
+                                <button onClick={() => generateInvoicePDF(b, car!)} className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors border border-blue-100 flex items-center gap-2 text-xs font-bold">
                                     <Printer size={16}/> <span className="hidden md:inline">Nota PDF</span>
                                 </button>
                                 <button onClick={() => handleEdit(b)} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 border border-slate-100"><Edit2 size={20}/></button>
@@ -1039,10 +841,8 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
             </div>
         </div>
       )}
-      
       {isChecklistModalOpen && checklistBooking && (
           <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-             {/* ... existing checklist modal content ... */}
              <div className="bg-white rounded-3xl w-full max-w-4xl p-8 shadow-2xl max-h-[95vh] overflow-y-auto border-t-8 border-indigo-600">
                  <div className="flex justify-between items-center mb-8 border-b pb-6">
                      <div><h3 className="text-2xl font-black text-slate-800 uppercase tracking-tighter">Checklist Serah Terima</h3><p className="text-slate-500 font-bold">ID Transaksi: <span className="font-mono text-indigo-600">#{checklistBooking.id.slice(0,8)}</span></p></div>

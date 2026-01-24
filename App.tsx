@@ -1,7 +1,8 @@
+
 import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Car, CalendarRange, Users, Wallet, Menu, X, UserCog, CalendarClock, Settings, LogOut, MapPin, Receipt, PieChart, UserCircle, Loader2, RefreshCw, FileText, Palette, List, HelpCircle, Map, ChevronLeft, Calculator } from 'lucide-react';
+import { LayoutDashboard, Car, CalendarRange, Users, Wallet, Menu, X, UserCog, CalendarClock, Settings, LogOut, MapPin, Receipt, PieChart, UserCircle, Loader2, RefreshCw, FileText, Palette, List, HelpCircle, Map, ChevronLeft, Calculator, Building, ReceiptText } from 'lucide-react';
 import { initializeData, getStoredData, DEFAULT_SETTINGS } from './services/dataService';
 import { getCurrentUser, logout } from './services/authService';
 import { User, AppSettings } from './types';
@@ -12,6 +13,7 @@ import BookingPage from './pages/BookingPage';
 import FleetPage from './pages/FleetPage';
 import PartnersPage from './pages/PartnersPage';
 import DriversPage from './pages/DriversPage';
+import VendorsPage from './pages/VendorsPage';
 import HighSeasonPage from './pages/HighSeasonPage';
 import SettingsPage from './pages/SettingsPage';
 import LoginPage from './pages/LoginPage';
@@ -19,6 +21,7 @@ import CustomersPage from './pages/CustomersPage';
 import ExpensesPage from './pages/ExpensesPage';
 import StatisticsPage from './pages/StatisticsPage';
 import CalculatorPage from './pages/CalculatorPage';
+import CollectiveInvoicePage from './pages/CollectiveInvoicePage';
 
 const SidebarItem = ({ to, icon: Icon, label }: { to: string; icon: any; label: string }) => {
   const location = useLocation();
@@ -86,11 +89,13 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
           case '/booking': return 'Booking';
           case '/fleet': return 'Armada';
           case '/partners': return isPartner ? 'Saldo Saya' : 'Investor';
+          case '/vendors': return 'Vendor';
           case '/drivers': return isDriver ? 'Profil' : 'Driver';
           case '/customers': return 'Pelanggan';
           case '/expenses': return isDriver ? 'Reimbursement' : 'Keuangan';
           case '/statistics': return 'Statistik';
           case '/calculator': return 'Kalkulator';
+          case '/collective-invoice': return 'Invoice Kolektif';
           case '/high-season': return 'High Season';
           case '/settings': return 'Pengaturan';
           default: return settings.companyName;
@@ -136,6 +141,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                     <div className="space-y-1">
                         <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
                         <SidebarItem to="/booking" icon={CalendarRange} label="Booking & Jadwal" />
+                        <SidebarItem to="/collective-invoice" icon={ReceiptText} label="Invoice Kolektif" />
                         <SidebarItem to="/calculator" icon={Calculator} label="Kalkulator" />
                     </div>
                 </div>
@@ -147,6 +153,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                         <SidebarItem to="/customers" icon={Users} label="Data Pelanggan" />
                         <SidebarItem to="/drivers" icon={UserCircle} label="Data Driver" />
                         <SidebarItem to="/partners" icon={UserCog} label="Investor & Rekanan" />
+                        <SidebarItem to="/vendors" icon={Building} label="Vendor" />
                         <SidebarItem to="/high-season" icon={CalendarClock} label="High Season" />
                     </div>
                 </div>
@@ -347,6 +354,10 @@ const App = () => {
             user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><BookingPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
         
+        <Route path="/collective-invoice" element={
+            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><CollectiveInvoicePage/></AppLayout> : <Navigate to="/" />
+        } />
+
         <Route path="/calculator" element={
             user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><CalculatorPage/></AppLayout> : <Navigate to="/" />
         } />
@@ -357,6 +368,10 @@ const App = () => {
         
         <Route path="/partners" element={
             user ? <AppLayout user={user} onLogout={handleLogout}><PartnersPage currentUser={user}/></AppLayout> : <Navigate to="/" />
+        } />
+
+        <Route path="/vendors" element={
+            user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><VendorsPage /></AppLayout> : <Navigate to="/" />
         } />
         
         <Route path="/drivers" element={

@@ -80,6 +80,14 @@ export interface Partner {
   image?: string;
 }
 
+export interface Vendor {
+  id: string;
+  name: string; // Nama Rental Rekanan
+  phone: string;
+  address: string;
+  image?: string;
+}
+
 export interface Driver {
   id: string;
   name: string;
@@ -135,7 +143,15 @@ export interface VehicleChecklist {
 
 export interface Booking {
   id: string;
-  carId: string;
+  carId: string; // Optional if Rent to Rent, but keeping string to avoid break, use logic to ignore if isRentToRent
+  
+  // Rent to Rent Fields
+  isRentToRent?: boolean;
+  vendorId?: string; // ID Rental Rekanan
+  externalCarName?: string; // Nama Mobil Luar
+  externalCarPlate?: string; // Plat Mobil Luar
+  vendorFee?: number; // Biaya sewa ke vendor (HPP)
+
   driverId?: string;
   customerId?: string; // Link to Customer DB
   customerName: string; // Fallback / Cache
@@ -169,6 +185,7 @@ export interface Booking {
   overtimeFee?: number; // Denda Keterlambatan
   extraCost?: number; // New: Biaya Tambahan (BBM, Kerusakan, dll)
   extraCostDescription?: string; // New: Keterangan Biaya Tambahan
+  discount?: number; // New: Diskon Manual
   
   totalPrice: number;
   amountPaid: number;
@@ -195,5 +212,5 @@ export interface Transaction {
   
   // New for Reimbursement Logic
   status?: 'Pending' | 'Paid'; 
-  relatedId?: string; // Links to Driver ID or Partner ID
+  relatedId?: string; // Links to Driver ID or Partner ID or Vendor ID
 }

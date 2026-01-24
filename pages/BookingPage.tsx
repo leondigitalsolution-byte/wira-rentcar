@@ -6,12 +6,13 @@ import {
   Gauge, Car as CarIcon, Edit2, FileSpreadsheet, ChevronDown, 
   Filter, Info, Send, Wallet, CheckSquare, Clock as ClockIcon,
   DollarSign, CreditCard, Tag, ArrowRight, History, XCircle,
-  Camera, Printer
+  Camera, Printer, ChevronLeft, ChevronRight, LayoutList, GanttChart,
+  Building, UserCheck
 } from 'lucide-react';
 import React, { useState, useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { getStoredData, setStoredData, checkAvailability, DEFAULT_SETTINGS, compressImage } from '../services/dataService';
-import { Car, Booking, BookingStatus, PaymentStatus, Transaction, Driver, HighSeason, AppSettings, Customer, User, VehicleChecklist } from '../types';
+import { Car, Booking, BookingStatus, PaymentStatus, Transaction, Driver, HighSeason, AppSettings, Customer, User, VehicleChecklist, Partner, Vendor } from '../types';
 import { generateInvoicePDF, generateWhatsAppLink, generateDriverTaskLink } from '../services/pdfService';
 
 interface Props {
@@ -20,14 +21,20 @@ interface Props {
 
 const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [searchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState<'list' | 'create'>('list');
+  const [activeTab, setActiveTab] = useState<'list' | 'create' | 'timeline'>('list');
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   
   const [cars, setCars] = useState<Car[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [customers, setCustomers] = useState<Customer[]>([]);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
   const [highSeasons, setHighSeasons] = useState<HighSeason[]>([]);
+
+  // Timeline State
+  const [timelineDate, setTimelineDate] = useState(new Date());
+  const [timelineSearch, setTimelineSearch] = useState('');
 
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
@@ -40,9 +47,17 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [endDate, setEndDate] = useState('');
   const [endTime, setEndTime] = useState('08:00');
   
+  // Car Selection State
   const [selectedCarId, setSelectedCarId] = useState<string>('');
   const [isCarDropdownOpen, setIsCarDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Rent to Rent State
+  const [isRentToRent, setIsRentToRent] = useState(false);
+  const [selectedVendorId, setSelectedVendorId] = useState('');
+  const [externalCarName, setExternalCarName] = useState('');
+  const [externalCarPlate, setExternalCarPlate] = useState('');
+  const [vendorFee, setVendorFee] = useState<number>(0);
 
   const [useDriver, setUseDriver] = useState(false);
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
@@ -65,6 +80,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [overtimeFee, setOvertimeFee] = useState<number>(0);
   const [extraCost, setExtraCost] = useState<number>(0);
   const [extraCostDescription, setExtraCostDescription] = useState('');
+  const [discount, setDiscount] = useState<number>(0); 
 
   const [currentStatus, setCurrentStatus] = useState<BookingStatus>(BookingStatus.BOOKED);
   const [internalNotes, setInternalNotes] = useState('');
@@ -81,6 +97,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
     deliveryFee: 0,
     overtimeFee: 0,
     extraCost: 0,
+    discount: 0,
     totalPrice: 0
   });
 
@@ -101,6 +118,8 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
     setCars(getStoredData<Car[]>('cars', []));
     setBookings(getStoredData<Booking[]>('bookings', []));
     setDrivers(getStoredData<Driver[]>('drivers', []));
+    setPartners(getStoredData<Partner[]>('partners', []));
+    setVendors(getStoredData<Vendor[]>('vendors', []));
     setHighSeasons(getStoredData<HighSeason[]>('highSeasons', []));
     setCustomers(getStoredData<Customer[]>('customers', []));
     const loadedSettings = getStoredData<AppSettings>('appSettings', DEFAULT_SETTINGS);
@@ -129,6 +148,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   }, [selectedCustomerId, customers]);
 
   useEffect(() => {
+      if (isRentToRent) return; // Skip price auto-fill if rent-to-rent (user sets manually usually, or it defaults)
       if (!selectedCarId || !packageType || editingBookingId) return;
       const car = cars.find(c => c.id === selectedCarId);
       if (car) {
@@ -138,7 +158,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
           }
           setCustomBasePrice(price);
       }
-  }, [selectedCarId, packageType, cars, editingBookingId]);
+  }, [selectedCarId, packageType, cars, editingBookingId, isRentToRent]);
 
   // Separate Effect for Auto Overdue Calculation
   useEffect(() => {
@@ -167,7 +187,8 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
     const diffDays = Math.max(1, Math.ceil(diffHours / 24));
     setDurationDays(diffDays);
 
-    if (selectedCarId) {
+    // Car Availability Check (Skip if Rent to Rent)
+    if (selectedCarId && !isRentToRent) {
       const conflict = bookings.find(b => {
           if (editingBookingId && b.id === editingBookingId) return false;
           if (b.status === BookingStatus.CANCELLED) return false;
@@ -208,7 +229,10 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         });
 
         // Sum everything including manual/auto overdue and extra costs
-        const total = totalBase + totalDriver + hsFee + deliveryFee + overtimeFee + extraCost;
+        const subTotal = totalBase + totalDriver + hsFee + deliveryFee + overtimeFee + extraCost;
+        // SUBTRACT DISCOUNT
+        const total = Math.max(0, subTotal - discount);
+
         setPricing({ 
             basePrice: totalBase, 
             driverFee: totalDriver, 
@@ -216,10 +240,11 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
             deliveryFee, 
             overtimeFee, 
             extraCost,
+            discount,
             totalPrice: total 
         });
     }
-  }, [selectedCarId, selectedDriverId, useDriver, startDate, startTime, endDate, endTime, customBasePrice, deliveryFee, extraCost, overtimeFee, bookings, cars, drivers, highSeasons, editingBookingId]);
+  }, [selectedCarId, selectedDriverId, useDriver, startDate, startTime, endDate, endTime, customBasePrice, deliveryFee, extraCost, overtimeFee, discount, bookings, cars, drivers, highSeasons, editingBookingId, isRentToRent]);
 
   const handleChecklistImageUpload = async (field: 'speedometer' | 'front' | 'back' | 'left' | 'right', e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -250,7 +275,23 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       setEndDate(end.toISOString().split('T')[0]);
       setEndTime(end.toTimeString().slice(0,5));
       
-      setSelectedCarId(booking.carId);
+      // Handle Rent to Rent logic
+      if (booking.isRentToRent) {
+          setIsRentToRent(true);
+          setSelectedVendorId(booking.vendorId || '');
+          setExternalCarName(booking.externalCarName || '');
+          setExternalCarPlate(booking.externalCarPlate || '');
+          setVendorFee(booking.vendorFee || 0);
+          setSelectedCarId(''); 
+      } else {
+          setIsRentToRent(false);
+          setSelectedCarId(booking.carId);
+          setSelectedVendorId('');
+          setExternalCarName('');
+          setExternalCarPlate('');
+          setVendorFee(0);
+      }
+
       setUseDriver(!!booking.driverId);
       setSelectedDriverId(booking.driverId || '');
       setDriverNote(booking.driverNote || '');
@@ -267,6 +308,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       setExtraCost(booking.extraCost || 0);
       setExtraCostDescription(booking.extraCostDescription || '');
       setOvertimeFee(booking.overtimeFee || 0);
+      setDiscount(booking.discount || 0);
       
       setCurrentStatus(booking.status);
       setAmountPaid(booking.amountPaid.toString());
@@ -282,9 +324,26 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       }
   };
 
+  // Triggered when clicking a timeline cell
+  const handleTimelineCellClick = (carId: string, date: Date) => {
+      resetForm();
+      const dateStr = date.toISOString().split('T')[0];
+      setSelectedCarId(carId);
+      setStartDate(dateStr);
+      setStartTime('08:00');
+      setEndDate(dateStr); // Default 1 day duration
+      setEndTime('20:00');
+      setActiveTab('create');
+  };
+
   const handleCreateBooking = (e: React.FormEvent) => {
     e.preventDefault();
-    if (carError || driverError) return;
+    if (!isRentToRent && carError) return;
+    if (driverError) return;
+    
+    if (isRentToRent && !externalCarName) { alert("Nama Mobil External harus diisi!"); return; }
+    if (!isRentToRent && !selectedCarId) { alert("Pilih Unit Mobil!"); return; }
+
     const start = new Date(`${startDate}T${startTime}`);
     const end = new Date(`${endDate}T${endTime}`);
     if (end <= start) { alert('Waktu selesai harus setelah waktu mulai'); return; }
@@ -304,7 +363,15 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
     const newBooking: Booking = {
       id: editingBookingId || Date.now().toString(),
-      carId: selectedCarId,
+      carId: selectedCarId, // Will be empty if rent-to-rent
+      
+      // Rent to Rent Fields
+      isRentToRent: isRentToRent,
+      vendorId: isRentToRent ? selectedVendorId : undefined,
+      externalCarName: isRentToRent ? externalCarName : undefined,
+      externalCarPlate: isRentToRent ? externalCarPlate : undefined,
+      vendorFee: isRentToRent ? Number(vendorFee) : undefined,
+
       driverId: useDriver ? selectedDriverId : undefined,
       driverNote: driverNote,
       customerId: selectedCustomerId || undefined,
@@ -326,6 +393,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       overtimeFee: overtimeFee,
       extraCost: extraCost,
       extraCostDescription: extraCostDescription,
+      discount: discount,
       totalPrice: pricing.totalPrice,
       amountPaid: paid,
       status: finalStatus,
@@ -335,36 +403,120 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       createdAt: editingBookingId ? (bookings.find(b => b.id === editingBookingId)?.createdAt || Date.now()) : Date.now()
     };
 
+    // Load current transactions to manage
+    const currentTx = getStoredData<Transaction[]>('transactions', []);
+    let newTransactions: Transaction[] = [...currentTx];
+
+    // 1. Handle Income Transaction (Customer Payment)
     let oldPaid = editingBookingId ? (bookings.find(b => b.id === editingBookingId)?.amountPaid || 0) : 0;
     if (paid > oldPaid) {
-        const transaction: Transaction = {
+        newTransactions.unshift({
             id: `tx-${Date.now()}`,
             date: new Date().toISOString(),
             amount: paid - oldPaid,
             type: 'Income',
             category: 'Rental Payment',
-            description: `Pembayaran ${newBooking.customerName} - ${cars.find(c => c.id === selectedCarId)?.name}`,
+            description: `Pembayaran ${newBooking.customerName} - ${isRentToRent ? externalCarName : cars.find(c => c.id === selectedCarId)?.name}`,
             bookingId: newBooking.id,
-            receiptImage: paymentProofImage || undefined
-        };
-        const currentTx = getStoredData<Transaction[]>('transactions', []);
-        setStoredData('transactions', [transaction, ...currentTx]);
+            receiptImage: paymentProofImage || undefined,
+            status: 'Paid'
+        });
     }
 
-    const updated = editingBookingId ? bookings.map(b => b.id === editingBookingId ? newBooking : b) : [newBooking, ...bookings];
-    setBookings(updated);
-    setStoredData('bookings', updated);
+    // 2. AUTOMATION: Generate Expense for Partner, Driver, or VENDOR
+    if (newBooking.status === BookingStatus.COMPLETED && newBooking.paymentStatus === PaymentStatus.PAID) {
+        
+        // A. Setor Vendor (Jika Rent to Rent)
+        if (newBooking.isRentToRent && newBooking.vendorId && (newBooking.vendorFee || 0) > 0) {
+             const exists = newTransactions.some(t => t.bookingId === newBooking.id && t.category === 'Sewa Vendor');
+             if (!exists) {
+                 const vendor = vendors.find(v => v.id === newBooking.vendorId);
+                 newTransactions.unshift({
+                    id: `auto-vendor-${Date.now()}-${Math.random()}`,
+                    date: new Date().toISOString(),
+                    amount: Number(newBooking.vendorFee),
+                    type: 'Expense',
+                    category: 'Sewa Vendor',
+                    description: `Bayar Vendor #${newBooking.id.slice(0,6)} - ${vendor?.name || 'Unit Luar'}`,
+                    bookingId: newBooking.id,
+                    relatedId: newBooking.vendorId, // Optional link to vendor ID if we tracked it in Transaction.relatedId
+                    status: 'Pending'
+                 });
+             }
+        }
+
+        // B. Setor Investor (Jika Mobil Milik Mitra Internal)
+        if (!newBooking.isRentToRent) {
+            const car = cars.find(c => c.id === newBooking.carId);
+            if (car && car.partnerId) {
+                const partner = partners.find(p => p.id === car.partnerId);
+                if (partner) {
+                    const exists = newTransactions.some(t => t.bookingId === newBooking.id && t.category === 'Setor Investor');
+                    if (!exists) {
+                        const revenueBase = newBooking.basePrice + (newBooking.overtimeFee || 0) + newBooking.highSeasonFee;
+                        const splitAmount = revenueBase * (partner.splitPercentage / 100);
+                        
+                        if (splitAmount > 0) {
+                            newTransactions.unshift({
+                                id: `auto-invest-${Date.now()}-${Math.random()}`,
+                                date: new Date().toISOString(),
+                                amount: splitAmount,
+                                type: 'Expense',
+                                category: 'Setor Investor',
+                                description: `Bagi Hasil Booking #${newBooking.id.slice(0,6)} - ${car.name}`,
+                                bookingId: newBooking.id,
+                                relatedId: partner.id,
+                                status: 'Pending'
+                            });
+                        }
+                    }
+                }
+            }
+        }
+
+        // C. Gaji Driver (Jika Pakai Driver)
+        if (newBooking.driverId && newBooking.driverFee > 0) {
+             const exists = newTransactions.some(t => t.bookingId === newBooking.id && t.category === 'Gaji');
+             if (!exists) {
+                 const driver = drivers.find(d => d.id === newBooking.driverId);
+                 newTransactions.unshift({
+                    id: `auto-gaji-${Date.now()}-${Math.random()}`,
+                    date: new Date().toISOString(),
+                    amount: newBooking.driverFee,
+                    type: 'Expense',
+                    category: 'Gaji',
+                    description: `Gaji Trip #${newBooking.id.slice(0,6)} - ${driver?.name || 'Driver'}`,
+                    bookingId: newBooking.id,
+                    relatedId: newBooking.driverId,
+                    status: 'Pending'
+                 });
+             }
+        }
+    }
+
+    // Save Bookings
+    const updatedBookings = editingBookingId ? bookings.map(b => b.id === editingBookingId ? newBooking : b) : [newBooking, ...bookings];
+    setBookings(updatedBookings);
+    setStoredData('bookings', updatedBookings);
+
+    // Save Transactions
+    setStoredData('transactions', newTransactions);
+
     setSuccessMessage('Booking berhasil diamankan!');
     setTimeout(() => { setSuccessMessage(''); setActiveTab('list'); resetForm(); }, 2000);
   };
 
   const resetForm = () => {
     setEditingBookingId(null); setSelectedCarId(''); setStartDate(''); setEndDate('');
+    
+    setIsRentToRent(false); setSelectedVendorId(''); setExternalCarName(''); setExternalCarPlate(''); setVendorFee(0);
+
     setUseDriver(false); setSelectedDriverId(''); setDriverNote('');
     setSelectedCustomerId(''); setCustomerName(''); setCustomerPhone(''); setPackageType(settings.rentalPackages[0]);
     setDestination('Dalam Kota'); setCustomerNote(''); setCustomBasePrice(0); setDeliveryFee(0);
     setAmountPaid('0'); setActualReturnDate(''); setActualReturnTime(''); setOvertimeFee(0);
     setExtraCost(0); setExtraCostDescription(''); setInternalNotes(''); setPaymentProofImage(null);
+    setDiscount(0);
     setCurrentStatus(BookingStatus.BOOKED);
     setCarError('');
     setConflictingBooking(null);
@@ -441,6 +593,33 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       }
   };
 
+  // Timeline Helper Functions
+  const getDaysInMonth = (date: Date) => {
+      const year = date.getFullYear();
+      const month = date.getMonth();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const days = [];
+      for (let i = 1; i <= daysInMonth; i++) {
+          days.push(new Date(year, month, i));
+      }
+      return days;
+  };
+
+  const getTimelineBookings = (carId: string) => {
+      const year = timelineDate.getFullYear();
+      const month = timelineDate.getMonth();
+      const firstDayOfMonth = new Date(year, month, 1);
+      const lastDayOfMonth = new Date(year, month + 1, 0);
+
+      return bookings.filter(b => {
+          if (b.carId !== carId || b.status === BookingStatus.CANCELLED) return false;
+          const start = new Date(b.startDate);
+          const end = new Date(b.endDate);
+          // Check overlapping
+          return start <= lastDayOfMonth && end >= firstDayOfMonth;
+      });
+  };
+
   const selectedCarData = cars.find(c => c.id === selectedCarId);
 
   // Get upcoming bookings for selected car to show schedule
@@ -458,6 +637,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       [BookingStatus.MAINTENANCE]: 5
   };
 
+  // Filter Cars for Timeline based on Search
+  const filteredTimelineCars = cars.filter(c => 
+      c.name.toLowerCase().includes(timelineSearch.toLowerCase()) || 
+      c.plate.toLowerCase().includes(timelineSearch.toLowerCase())
+  );
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
@@ -465,9 +650,16 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
           <h2 className="text-3xl font-bold text-slate-800">Booking & Jadwal</h2>
           <p className="text-slate-500 font-medium">Sistem anti-bentrok jadwal otomatis 24/7.</p>
         </div>
-        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm">
-           <button onClick={() => setActiveTab('list')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>Daftar</button>
-           <button onClick={() => setActiveTab('create')} className={`px-5 py-2.5 rounded-lg text-sm font-bold transition-all ${activeTab === 'create' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>Input Baru</button>
+        <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
+           <button onClick={() => setActiveTab('list')} className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
+               <LayoutList size={16}/> Daftar
+           </button>
+           <button onClick={() => setActiveTab('timeline')} className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'timeline' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
+               <GanttChart size={16}/> Timeline
+           </button>
+           <button onClick={() => setActiveTab('create')} className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'create' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
+               <Plus size={16}/> Input Baru
+           </button>
         </div>
       </div>
 
@@ -477,9 +669,130 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         </div>
       )}
 
-      {activeTab === 'create' ? (
+      {/* TIMELINE VIEW (Unchanged - Note: External cars won't appear here as they aren't in car DB) */}
+      {activeTab === 'timeline' && (
+          <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)]">
+              {/* Timeline Header & Controls (Same as before) */}
+              <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center bg-slate-50 gap-4 flex-shrink-0">
+                  <div className="flex items-center gap-2">
+                      <button onClick={() => setTimelineDate(new Date(timelineDate.setMonth(timelineDate.getMonth() - 1)))} className="p-2 bg-white border rounded-lg hover:bg-slate-50"><ChevronLeft size={16}/></button>
+                      <h3 className="font-bold text-slate-800 w-40 text-center">{timelineDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</h3>
+                      <button onClick={() => setTimelineDate(new Date(timelineDate.setMonth(timelineDate.getMonth() + 1)))} className="p-2 bg-white border rounded-lg hover:bg-slate-50"><ChevronRight size={16}/></button>
+                  </div>
+                  
+                  {/* Search Filter for Timeline */}
+                  <div className="relative w-full sm:w-64">
+                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                      <input 
+                          type="text" 
+                          placeholder="Cari Unit (Nama/Plat)..." 
+                          className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
+                          value={timelineSearch}
+                          onChange={e => setTimelineSearch(e.target.value)}
+                      />
+                  </div>
+
+                  <div className="flex items-center gap-3 text-xs font-medium">
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-500"></span> Booked</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-500"></span> Active</span>
+                      <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-400"></span> Selesai</span>
+                  </div>
+              </div>
+              
+              {/* Scrollable Container */}
+              <div className="overflow-auto relative custom-scrollbar flex-1">
+                  <div className="min-w-[1000px] inline-block w-full">
+                      {/* Calendar Header (Sticky Top) */}
+                      <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-sm">
+                          <div className="w-48 p-3 font-bold text-xs text-slate-500 uppercase flex-shrink-0 sticky left-0 top-0 bg-slate-50 z-30 border-r border-slate-200 flex items-center">
+                              Unit Armada
+                          </div>
+                          
+                          <div className="flex flex-1">
+                              {getDaysInMonth(timelineDate).map(d => (
+                                  <div key={d.getDate()} className={`flex-1 min-w-[30px] text-center border-r border-slate-100 py-2 text-xs font-medium ${d.getDay() === 0 ? 'bg-red-50 text-red-600' : ''}`}>
+                                      {d.getDate()}
+                                  </div>
+                              ))}
+                          </div>
+                      </div>
+
+                      {/* Timeline Rows */}
+                      {filteredTimelineCars.map(car => (
+                          <div key={car.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 relative h-16 group">
+                              <div className="w-48 p-3 flex items-center gap-3 border-r border-slate-200 bg-white flex-shrink-0 sticky left-0 z-10 group-hover:bg-slate-50 transition-colors">
+                                  {car.image ? (
+                                      <img src={car.image} className="w-10 h-10 rounded-lg object-cover" />
+                                  ) : (
+                                      <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"><CarIcon size={16} className="text-slate-400"/></div>
+                                  )}
+                                  <div>
+                                      <p className="text-xs font-bold text-slate-800 truncate w-24">{car.name}</p>
+                                      <p className="text-[10px] text-slate-500">{car.plate}</p>
+                                  </div>
+                              </div>
+                              
+                              <div className="flex flex-1 relative">
+                                  {getDaysInMonth(timelineDate).map(d => (
+                                      <div 
+                                          key={d.getDate()} 
+                                          className={`flex-1 min-w-[30px] border-r border-slate-100 h-full ${d.getDay() === 0 ? 'bg-red-50/30' : ''} hover:bg-indigo-50 cursor-pointer transition-colors`}
+                                          onClick={() => handleTimelineCellClick(car.id, d)}
+                                          title={`Buat booking untuk ${car.name} tanggal ${d.getDate()}`}
+                                      ></div>
+                                  ))}
+
+                                  {getTimelineBookings(car.id).map(b => {
+                                      const daysInMonth = new Date(timelineDate.getFullYear(), timelineDate.getMonth() + 1, 0).getDate();
+                                      const start = new Date(b.startDate);
+                                      const end = new Date(b.endDate);
+                                      
+                                      const monthStart = new Date(timelineDate.getFullYear(), timelineDate.getMonth(), 1);
+                                      
+                                      let startDay = start.getDate();
+                                      let duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                                      
+                                      if (start < monthStart) {
+                                          const offset = Math.ceil((monthStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                                          duration -= offset;
+                                          startDay = 1;
+                                      }
+
+                                      if (startDay + duration > daysInMonth + 1) {
+                                          duration = (daysInMonth + 1) - startDay;
+                                      }
+
+                                      if (duration <= 0) return null;
+
+                                      const leftPos = ((startDay - 1) / daysInMonth) * 100;
+                                      const width = (duration / daysInMonth) * 100;
+
+                                      const colorClass = b.status === 'Active' ? 'bg-green-500' : b.status === 'Completed' ? 'bg-slate-400' : 'bg-blue-500';
+
+                                      return (
+                                          <div 
+                                              key={b.id}
+                                              className={`absolute top-3 bottom-3 rounded-md shadow-sm text-[10px] text-white flex items-center justify-center font-bold px-1 overflow-hidden whitespace-nowrap cursor-pointer z-0 hover:z-20 hover:scale-105 transition-transform ${colorClass}`}
+                                              style={{ left: `${leftPos}%`, width: `${width}%` }}
+                                              onClick={(e) => { e.stopPropagation(); handleEdit(b); }}
+                                              title={`${b.customerName} (${new Date(b.startDate).toLocaleDateString('id-ID')} - ${new Date(b.endDate).toLocaleDateString('id-ID')})`}
+                                          >
+                                              {b.customerName}
+                                          </div>
+                                      );
+                                  })}
+                              </div>
+                          </div>
+                      ))}
+                  </div>
+              </div>
+          </div>
+      )}
+
+      {activeTab === 'create' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-visible">
              <form onSubmit={handleCreateBooking} className="grid grid-cols-1 lg:grid-cols-[1.2fr_2fr] min-h-[600px]">
+                
                 <div className="bg-slate-50/50 p-6 border-r border-slate-100 space-y-6">
                     <section className="space-y-4">
                         <h4 className="font-black text-slate-800 flex items-center gap-2 border-b pb-3 uppercase tracking-widest text-[10px]"><ClockIcon size={16} className="text-indigo-600"/> Waktu & Unit</h4>
@@ -499,45 +812,80 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                             </div>
                         </div>
-                        <div className="relative" ref={dropdownRef}>
-                             <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Pilih Mobil</label>
-                             <div onClick={() => setIsCarDropdownOpen(!isCarDropdownOpen)} className={`w-full border rounded-xl p-3 cursor-pointer flex items-center justify-between transition-all ${carError ? 'border-red-500 bg-red-50 ring-2 ring-red-100' : 'bg-white hover:border-indigo-400 shadow-sm'}`}>
-                                {selectedCarData ? (
-                                    <div className="flex items-center gap-3">
-                                        <img src={selectedCarData.image} className="w-10 h-7 object-cover rounded shadow-sm" />
-                                        <div><p className="font-bold text-xs">{selectedCarData.name}</p><p className="text-[9px] text-slate-500 font-mono">{selectedCarData.plate}</p></div>
-                                    </div>
-                                ) : <span className="text-xs text-slate-400">Pilih unit armada...</span>}
-                                <ChevronDown size={18} className="text-slate-400"/>
-                             </div>
-                             {isCarDropdownOpen && (
-                                <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
-                                    {cars.map(car => {
-                                        const isAvailable = (!startDate || !endDate) ? true : checkAvailability(bookings, car.id, new Date(`${startDate}T${startTime}`), new Date(`${endDate}T${endTime}`), 'car', editingBookingId || undefined);
-                                        return (
-                                            <div key={car.id} onClick={() => isAvailable && (setSelectedCarId(car.id), setIsCarDropdownOpen(false))} className={`p-3 border-b last:border-0 flex items-center gap-4 transition-colors ${!isAvailable ? 'bg-slate-100 opacity-40 cursor-not-allowed' : 'hover:bg-indigo-50 cursor-pointer'}`}>
-                                                <img src={car.image} className="w-12 h-8 object-cover rounded shadow-sm" />
-                                                <div className="flex-1"><p className="font-bold text-xs text-slate-800">{car.name}</p><p className="text-[9px] text-slate-500">{car.plate}</p></div>
-                                                {!isAvailable && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-black uppercase">Bentrok</span>}
-                                            </div>
-                                        );
-                                    })}
-                                </div>
-                             )}
-                             {/* CONFLICT ALERT WITH DETAILS */}
-                             {carError && conflictingBooking && (
-                                 <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
-                                     <p className="text-red-700 text-[10px] font-bold flex items-center gap-1 mb-1"><AlertTriangle size={12}/> JADWAL BENTROK!</p>
-                                     <div className="text-[10px] text-slate-600">
-                                         <p>Dipakai oleh: <span className="font-bold">{conflictingBooking.customerName}</span></p>
-                                         <p>{new Date(conflictingBooking.startDate).toLocaleString('id-ID')} s/d</p>
-                                         <p>{new Date(conflictingBooking.endDate).toLocaleString('id-ID')}</p>
-                                     </div>
-                                 </div>
-                             )}
+
+                        {/* RENT TO RENT TOGGLE */}
+                        <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
+                            <label className="flex items-center gap-3 cursor-pointer">
+                                <input type="checkbox" className="w-5 h-5 text-yellow-600 rounded-md border-slate-300" checked={isRentToRent} onChange={e => setIsRentToRent(e.target.checked)} />
+                                <span className="text-sm font-bold text-slate-700 flex items-center gap-2"><Building size={16}/> Rent to Rent / Unit Luar</span>
+                            </label>
                         </div>
+
+                        {isRentToRent ? (
+                            <div className="space-y-3 animate-fade-in">
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Pilih Vendor</label>
+                                    <select required className="w-full border rounded-lg p-2.5 text-sm font-bold bg-white" value={selectedVendorId} onChange={e => setSelectedVendorId(e.target.value)}>
+                                        <option value="">-- Pilih Vendor --</option>
+                                        {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
+                                    </select>
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Nama Mobil (External)</label>
+                                    <input required type="text" className="w-full border rounded-lg p-2.5 text-sm font-bold" placeholder="Contoh: Innova Zenix" value={externalCarName} onChange={e => setExternalCarName(e.target.value)} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Plat Nomor</label>
+                                    <input required type="text" className="w-full border rounded-lg p-2.5 text-sm font-bold font-mono uppercase" placeholder="B 1234 XX" value={externalCarPlate} onChange={e => setExternalCarPlate(e.target.value)} />
+                                </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1"><DollarSign size={10}/> Biaya Sewa ke Vendor (HPP)</label>
+                                    <input required type="number" className="w-full border rounded-lg p-2.5 text-sm font-bold border-red-200 bg-red-50" placeholder="0" value={vendorFee} onChange={e => setVendorFee(Number(e.target.value))} />
+                                    <p className="text-[9px] text-slate-400">*Akan dicatat sebagai pengeluaran</p>
+                                </div>
+                            </div>
+                        ) : (
+                            <div className="relative" ref={dropdownRef}>
+                                <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Pilih Mobil</label>
+                                <div onClick={() => setIsCarDropdownOpen(!isCarDropdownOpen)} className={`w-full border rounded-xl p-3 cursor-pointer flex items-center justify-between transition-all ${carError ? 'border-red-500 bg-red-50 ring-2 ring-red-100' : 'bg-white hover:border-indigo-400 shadow-sm'}`}>
+                                    {selectedCarData ? (
+                                        <div className="flex items-center gap-3">
+                                            <img src={selectedCarData.image} className="w-10 h-7 object-cover rounded shadow-sm" />
+                                            <div><p className="font-bold text-xs">{selectedCarData.name}</p><p className="text-[9px] text-slate-500 font-mono">{selectedCarData.plate}</p></div>
+                                        </div>
+                                    ) : <span className="text-xs text-slate-400">Pilih unit armada...</span>}
+                                    <ChevronDown size={18} className="text-slate-400"/>
+                                </div>
+                                {isCarDropdownOpen && (
+                                    <div className="absolute z-50 w-full mt-2 bg-white border border-slate-200 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
+                                        {cars.map(car => {
+                                            const isAvailable = (!startDate || !endDate) ? true : checkAvailability(bookings, car.id, new Date(`${startDate}T${startTime}`), new Date(`${endDate}T${endTime}`), 'car', editingBookingId || undefined);
+                                            return (
+                                                <div key={car.id} onClick={() => isAvailable && (setSelectedCarId(car.id), setIsCarDropdownOpen(false))} className={`p-3 border-b last:border-0 flex items-center gap-4 transition-colors ${!isAvailable ? 'bg-slate-100 opacity-40 cursor-not-allowed' : 'hover:bg-indigo-50 cursor-pointer'}`}>
+                                                    <img src={car.image} className="w-12 h-8 object-cover rounded shadow-sm" />
+                                                    <div className="flex-1"><p className="font-bold text-xs text-slate-800">{car.name}</p><p className="text-[9px] text-slate-500">{car.plate}</p></div>
+                                                    {!isAvailable && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-black uppercase">Bentrok</span>}
+                                                </div>
+                                            );
+                                        })}
+                                    </div>
+                                )}
+                                {/* CONFLICT ALERT WITH DETAILS */}
+                                {carError && conflictingBooking && (
+                                    <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
+                                        <p className="text-red-700 text-[10px] font-bold flex items-center gap-1 mb-1"><AlertTriangle size={12}/> JADWAL BENTROK!</p>
+                                        <div className="text-[10px] text-slate-600">
+                                            <p>Dipakai oleh: <span className="font-bold">{conflictingBooking.customerName}</span></p>
+                                            <p>{new Date(conflictingBooking.startDate).toLocaleString('id-ID')} s/d</p>
+                                            <p>{new Date(conflictingBooking.endDate).toLocaleString('id-ID')}</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
                         {/* SCHEDULE PREVIEW FOR SELECTED CAR */}
-                        {selectedCarId && !carError && carUpcomingBookings.length > 0 && (
+                        {selectedCarId && !isRentToRent && !carError && carUpcomingBookings.length > 0 && (
                             <div className="mt-2 bg-indigo-50/50 border border-indigo-100 rounded-lg p-3">
                                 <p className="text-indigo-700 text-[10px] font-bold flex items-center gap-1 mb-2"><Calendar size={12}/> Booking Berikutnya:</p>
                                 <div className="space-y-2">
@@ -621,7 +969,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                             <div className="space-y-4">
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase">Harga Unit / Hari</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Harga Unit / Hari (Jual)</label>
                                     <div className="relative">
                                         <span className="absolute left-3 top-2.5 text-xs font-black text-slate-400">Rp</span>
                                         <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-black text-indigo-700 bg-indigo-50/30" value={customBasePrice} onChange={e => setCustomBasePrice(Number(e.target.value))} />
@@ -634,6 +982,13 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                         <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-bold" value={deliveryFee} onChange={e => setDeliveryFee(Number(e.target.value))} />
                                     </div>
                                 </div>
+                                <div className="space-y-1">
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Potongan / Diskon</label>
+                                    <div className="relative">
+                                        <span className="absolute left-3 top-2.5 text-xs font-black text-slate-400">Rp</span>
+                                        <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-bold text-green-600 bg-green-50 focus:ring-2 ring-green-200 outline-none" value={discount} onChange={e => setDiscount(Number(e.target.value))} />
+                                    </div>
+                                </div>
                             </div>
                             <div className="bg-slate-900 rounded-2xl p-6 text-white space-y-3 shadow-2xl relative overflow-hidden">
                                 <h5 className="font-black text-[10px] uppercase tracking-widest text-indigo-400">Rincian Estimasi</h5>
@@ -644,6 +999,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                     {pricing.deliveryFee > 0 && <div className="flex justify-between text-slate-400"><span>Antar/Jemput</span><span>Rp {pricing.deliveryFee.toLocaleString()}</span></div>}
                                     {overtimeFee > 0 && <div className="flex justify-between text-red-400"><span>Overdue (Denda)</span><span>Rp {overtimeFee.toLocaleString()}</span></div>}
                                     {extraCost > 0 && <div className="flex justify-between text-orange-300"><span>Biaya Extra</span><span>Rp {extraCost.toLocaleString()}</span></div>}
+                                    {discount > 0 && <div className="flex justify-between text-green-400 font-bold"><span>Diskon</span><span>- Rp {discount.toLocaleString()}</span></div>}
                                 </div>
                                 <div className="flex justify-between font-black text-lg text-indigo-300"><span>TOTAL</span><span>Rp {pricing.totalPrice.toLocaleString()}</span></div>
                             </div>
@@ -698,14 +1054,16 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         </div>
                     </section>
                     <div className="pt-6 border-t">
-                        <button type="submit" disabled={!!carError || !selectedCarId} className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest hover:bg-indigo-700 shadow-2xl active:scale-95 flex items-center justify-center gap-3">
+                        <button type="submit" disabled={!isRentToRent && (!!carError || !selectedCarId)} className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest hover:bg-indigo-700 shadow-2xl active:scale-95 flex items-center justify-center gap-3">
                             <Plus size={24}/> Simpan Transaksi & Jadwal
                         </button>
                     </div>
                 </div>
              </form>
         </div>
-      ) : (
+      )}
+
+      {activeTab === 'list' && (
         <div className="space-y-4">
             <div className="p-5 bg-white border border-slate-200 rounded-2xl flex flex-wrap gap-4 items-center shadow-sm">
                 <span className="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-tighter"><Filter size={18} className="text-indigo-600"/> Filter Data:</span>
@@ -734,7 +1092,21 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                     if (priorityA !== priorityB) return priorityA - priorityB;
                     return b.createdAt - a.createdAt;
                 }).map(b => {
-                    const car = cars.find(c => c.id === b.carId);
+                    // Logic to display Rent to Rent car details if internal car not found
+                    let carName = 'Unknown Car';
+                    let carPlate = '-';
+                    let carImage = null;
+
+                    if (b.isRentToRent) {
+                        carName = b.externalCarName || 'Unit Luar';
+                        carPlate = b.externalCarPlate || '-';
+                    } else {
+                        const car = cars.find(c => c.id === b.carId);
+                        carName = car?.name || 'Unknown Car';
+                        carPlate = car?.plate || '-';
+                        carImage = car?.image;
+                    }
+
                     const isDue = b.totalPrice > b.amountPaid;
                     const diffDays = Math.max(1, Math.ceil((new Date(b.endDate).getTime() - new Date(b.startDate).getTime()) / (1000 * 60 * 60 * 24)));
 
@@ -748,27 +1120,26 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         }
                     };
 
-                    const getLeftStripeColor = (status: BookingStatus) => {
-                        switch(status) {
-                            case BookingStatus.BOOKED: return 'bg-orange-500';
-                            case BookingStatus.ACTIVE: return 'bg-green-500';
-                            case BookingStatus.COMPLETED: return 'bg-blue-500';
-                            case BookingStatus.CANCELLED: return 'bg-slate-400';
-                            default: return 'bg-slate-300';
-                        }
-                    };
-
                     return (
                         <div key={b.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-6 relative overflow-hidden">
-                            <div className={`absolute left-0 top-0 bottom-0 w-2 ${getLeftStripeColor(b.status)}`}></div>
                             <div className="flex flex-col md:flex-row justify-between items-center gap-6 w-full">
                                 <div className="flex items-center gap-5 w-full">
-                                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0">
-                                        <CarIcon size={32} className="text-slate-400"/>
+                                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-200 relative">
+                                        {carImage ? (
+                                            <img src={carImage} className="w-full h-full object-cover" alt={carName} />
+                                        ) : (
+                                            <CarIcon size={32} className="text-slate-400"/>
+                                        )}
+                                        {b.isRentToRent && (
+                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
+                                                <Building className="text-white w-6 h-6" />
+                                            </div>
+                                        )}
                                     </div>
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center gap-3">
-                                            <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{car?.name} <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-[10px] font-black border border-slate-200 ml-2">{car?.plate}</span></h4>
+                                            <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{carName} <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-[10px] font-black border border-slate-200 ml-2">{carPlate}</span></h4>
+                                            {b.isRentToRent && <span className="bg-yellow-100 text-yellow-700 text-[9px] font-bold px-2 py-0.5 rounded border border-yellow-200">VENDOR</span>}
                                         </div>
                                         <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500">
                                             <span className="flex items-center gap-1.5"><Calendar size={14} className="text-indigo-600"/> {new Date(b.startDate).toLocaleDateString('id-ID')}</span>
@@ -785,29 +1156,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                             </div>
                             
-                            {/* OVERDUE & EXTRA COST INFO IN LIST */}
-                            {( (b.overtimeFee || 0) > 0 || (b.extraCost || 0) > 0 ) && (
-                                <div className="bg-red-50 border border-red-100 rounded-xl p-3 flex flex-col gap-1.5">
-                                    {(b.overtimeFee || 0) > 0 && (
-                                        <div className="flex items-center gap-2 text-[10px] font-black text-red-700 uppercase">
-                                            <AlertTriangle size={12}/> Biaya Overdue: Rp {b.overtimeFee?.toLocaleString()}
-                                        </div>
-                                    )}
-                                    {(b.extraCost || 0) > 0 && (
-                                        <div className="flex flex-col gap-0.5">
-                                            <div className="flex items-center gap-2 text-[10px] font-black text-orange-700 uppercase">
-                                                <Info size={12}/> Biaya Extra: Rp {b.extraCost?.toLocaleString()}
-                                            </div>
-                                            {b.extraCostDescription && (
-                                                <div className="text-[9px] text-slate-600 font-bold ml-5">
-                                                    Ket: {b.extraCostDescription}
-                                                </div>
-                                            )}
-                                        </div>
-                                    )}
-                                </div>
-                            )}
-
                             <div className="flex flex-wrap gap-2 w-full justify-start border-t pt-4">
                                 {isDue && b.status !== BookingStatus.CANCELLED && (
                                     <button onClick={() => handleLunasiAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-colors shadow-lg shadow-green-100 active:scale-95">
@@ -825,10 +1173,16 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                     </button>
                                 )}
                                 <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block"></div>
-                                <button onClick={() => window.open(generateWhatsAppLink(b, car!), '_blank')} className="px-3 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors border border-green-100 flex items-center gap-2 text-xs font-bold">
+                                <button 
+                                    onClick={() => { const c = cars.find(car=>car.id===b.carId); if(c || b.isRentToRent) window.open(generateWhatsAppLink(b, c || {name: b.externalCarName || '', plate: b.externalCarPlate || ''} as any), '_blank') }} 
+                                    className="px-3 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors border border-green-100 flex items-center gap-2 text-xs font-bold"
+                                >
                                     <MessageCircle size={16}/> <span className="hidden md:inline">Kirim WA</span>
                                 </button>
-                                <button onClick={() => generateInvoicePDF(b, car!)} className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors border border-blue-100 flex items-center gap-2 text-xs font-bold">
+                                <button 
+                                    onClick={() => { const c = cars.find(car=>car.id===b.carId); if(c || b.isRentToRent) generateInvoicePDF(b, c || {name: b.externalCarName || '', plate: b.externalCarPlate || ''} as any) }} 
+                                    className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors border border-blue-100 flex items-center gap-2 text-xs font-bold"
+                                >
                                     <Printer size={16}/> <span className="hidden md:inline">Nota PDF</span>
                                 </button>
                                 <button onClick={() => handleEdit(b)} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 border border-slate-100"><Edit2 size={20}/></button>
@@ -841,6 +1195,8 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
             </div>
         </div>
       )}
+      
+      {/* ... (Checklist Modal remains unchanged) ... */}
       {isChecklistModalOpen && checklistBooking && (
           <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-md">
              <div className="bg-white rounded-3xl w-full max-w-4xl p-8 shadow-2xl max-h-[95vh] overflow-y-auto border-t-8 border-indigo-600">

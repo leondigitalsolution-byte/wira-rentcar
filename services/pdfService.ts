@@ -1,6 +1,6 @@
 
 import jsPDF from "jspdf";
-import { Booking, Car, AppSettings, Transaction, Partner, Driver, BookingStatus } from "../types";
+import { Booking, Car, AppSettings, Transaction, Partner, Driver, BookingStatus, Customer } from "../types";
 import { getStoredData, DEFAULT_SETTINGS } from "./dataService";
 
 // --- REUSABLE COMPONENTS ---
@@ -8,55 +8,82 @@ import { getStoredData, DEFAULT_SETTINGS } from "./dataService";
 const drawProfessionalHeader = (doc: jsPDF, settings: AppSettings, title: string, subTitle1?: string, subTitle2?: string) => {
     const margin = 15;
     const pageWidth = doc.internal.pageSize.getWidth();
-    let y = 15;
+    const startY = 15;
+    
+    // Layout Dimensions
+    const boxW = 60; // Increased slightly to ensure right content fits
+    const boxH = 10;
+    const boxX = pageWidth - margin - boxW;
+    
+    const logoSize = 22;
+    const textLeftMargin = margin + logoSize + 5;
+    const maxTextWidth = boxX - textLeftMargin - 5; // Safe width for left content
 
     // 1. Draw Logo
-    const logoSize = 22;
     if (settings.logoUrl) {
-        try { doc.addImage(settings.logoUrl, 'PNG', margin, y, logoSize, logoSize); } 
-        catch (e) { drawLogoFallback(doc, margin, y, 0.35); }
+        try { doc.addImage(settings.logoUrl, 'PNG', margin, startY, logoSize, logoSize); } 
+        catch (e) { drawLogoFallback(doc, margin, startY, 0.35); }
     } else {
-        drawLogoFallback(doc, margin, y, 0.35);
+        drawLogoFallback(doc, margin, startY, 0.35);
     }
 
-    // 2. Company Info (Kop)
-    const companyTextX = margin + logoSize + 5;
+    // 2. Company Info (Left Side)
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(18);
-    doc.text(settings.companyName.toUpperCase(), companyTextX, y + 6);
+    doc.text(settings.companyName.toUpperCase(), textLeftMargin, startY + 6);
     
     doc.setFontSize(9);
     doc.setTextColor(100, 100, 100);
-    doc.text(settings.tagline.toUpperCase(), companyTextX, y + 11);
+    doc.text(settings.tagline.toUpperCase(), textLeftMargin, startY + 11);
     
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.text(settings.address, companyTextX, y + 16);
-    doc.text(`${settings.phone} | ${settings.email}`, companyTextX, y + 20);
+    
+    // Address with wrapping
+    const addressLines = doc.splitTextToSize(settings.address, maxTextWidth);
+    doc.text(addressLines, textLeftMargin, startY + 16);
+    
+    // Calculate vertical offset for next line based on address length
+    // Assuming approx 4 units per line height for font size 8
+    const addressBlockHeight = addressLines.length * 4;
+    
+    doc.text(`${settings.phone} | ${settings.email}`, textLeftMargin, startY + 16 + addressBlockHeight);
+
+    // Calculate bottom Y of left content
+    const leftContentBottom = startY + 16 + addressBlockHeight + 5;
 
     // 3. Right Side Box (INVOICE / REPORT TITLE)
-    const boxW = 55;
-    const boxH = 10;
-    const boxX = pageWidth - margin - boxW;
     doc.setFillColor(252, 220, 220); // Pinkish secondary color from ref
-    doc.rect(boxX, y, boxW, boxH, 'F');
+    doc.rect(boxX, startY, boxW, boxH, 'F');
     doc.setTextColor(0, 0, 0);
     doc.setFont("helvetica", "bold");
     doc.setFontSize(14);
-    doc.text(title, boxX + (boxW / 2), y + 7, { align: 'center' });
+    doc.text(title, boxX + (boxW / 2), startY + 7, { align: 'center' });
 
     // Subtitles below box (Nomor, Tanggal, etc)
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    if (subTitle1) doc.text(subTitle1, boxX, y + boxH + 6);
-    if (subTitle2) doc.text(subTitle2, boxX, y + boxH + 11);
+    
+    let rightContentBottom = startY + boxH;
+    if (subTitle1) {
+        doc.text(subTitle1, boxX, startY + boxH + 6);
+        rightContentBottom += 6;
+    }
+    if (subTitle2) {
+        doc.text(subTitle2, boxX, startY + boxH + 11);
+        rightContentBottom += 5;
+    }
+
+    // 4. Divider Line
+    // Ensure line is below both left and right content
+    const lineY = Math.max(leftContentBottom, rightContentBottom, startY + 30);
 
     doc.setDrawColor(200, 200, 200);
     doc.setLineWidth(0.5);
-    doc.line(margin, y + 30, pageWidth - margin, y + 30);
+    doc.line(margin, lineY, pageWidth - margin, lineY);
 
-    return y + 40; // Return next Y position
+    return lineY + 10; // Return next Y position
 };
 
 const drawLogoFallback = (doc: jsPDF, x: number, y: number, scale: number = 1.0) => {
@@ -89,6 +116,10 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
     const pageWidth = doc.internal.pageSize.getWidth();
     const pageHeight = doc.internal.pageSize.getHeight();
     
+    // Logic to handle empty car object (Rent to Rent case)
+    const displayCarName = car?.name || booking.externalCarName || 'Unknown Car';
+    const displayCarPlate = car?.plate || booking.externalCarPlate || '-';
+
     let currentY = drawProfessionalHeader(
         doc, 
         settings, 
@@ -115,14 +146,14 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
     doc.text("NAMA PENYEWA", margin, currentY);
     doc.text(`: ${booking.customerName}`, valueX, currentY);
     doc.text("Unit", rightX, currentY);
-    doc.text(`: ${car.name}`, rightX + rLabelW, currentY);
+    doc.text(`: ${displayCarName}`, rightX + rLabelW, currentY);
     currentY += 6;
 
     // Row 2
     doc.text("No. WA / HP", margin, currentY);
     doc.text(`: ${booking.customerPhone}`, valueX, currentY);
     doc.text("Nopol", rightX, currentY);
-    doc.text(`: ${car.plate}`, rightX + rLabelW, currentY);
+    doc.text(`: ${displayCarPlate}`, rightX + rLabelW, currentY);
     currentY += 6;
 
     // Row 3
@@ -160,12 +191,13 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
     doc.text("JUMLAH (Rp)", pageWidth - margin - 3, currentY + 5.5, { align: 'right' });
     currentY += 8;
 
-    const addTableRow = (desc: string, detail: string, amount: number) => {
+    const addTableRow = (desc: string, detail: string, amount: number, isNegative = false) => {
         doc.rect(margin, currentY, pageWidth - (margin * 2), 8, 'S');
         doc.setFont("helvetica", "normal");
         doc.text(desc, margin + 3, currentY + 5.5);
         doc.text(detail, 85, currentY + 5.5);
-        doc.text(amount.toLocaleString('id-ID'), pageWidth - margin - 3, currentY + 5.5, { align: 'right' });
+        const amountStr = (isNegative ? "-" : "") + amount.toLocaleString('id-ID');
+        doc.text(amountStr, pageWidth - margin - 3, currentY + 5.5, { align: 'right' });
         currentY += 8;
     };
 
@@ -183,6 +215,10 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
     
     if (booking.extraCost && booking.extraCost > 0) {
         addTableRow("Biaya Extra", booking.extraCostDescription || "Keterangan biaya extra", booking.extraCost);
+    }
+
+    if (booking.discount && booking.discount > 0) {
+        addTableRow("Potongan Diskon", "Pengurangan harga khusus", booking.discount, true);
     }
 
     // Summary Rows
@@ -330,7 +366,135 @@ export const generateInvoicePDF = (booking: Booking, car: Car) => {
     doc.save(`Invoice_${booking.customerName.replace(/\s+/g, '_')}_${booking.id.slice(0, 8)}.pdf`);
 };
 
-export const generateMonthlyReportPDF = (type: 'Driver' | 'Investor', entity: any, month: string, expenses: Transaction[], trips: Booking[]) => {
+export const generateCollectiveInvoicePDF = (customer: Customer, bookings: Booking[], cars: Car[]) => {
+    const settings = getStoredData<AppSettings>('appSettings', DEFAULT_SETTINGS);
+    const doc = new jsPDF();
+    const margin = 15;
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const invId = `INV-COL-${Date.now().toString().slice(-6)}`;
+
+    let currentY = drawProfessionalHeader(
+        doc, 
+        settings, 
+        "INVOICE KOLEKTIF", 
+        `Nomor    : #${invId}`, 
+        `Tanggal  : ${new Date().toLocaleDateString('id-ID')}`
+    );
+
+    // --- 1. INFO PELANGGAN ---
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("TAGIHAN KEPADA:", margin, currentY);
+    currentY += 6;
+    doc.setFont("helvetica", "normal");
+    doc.text(`Nama: ${customer.name}`, margin, currentY);
+    currentY += 5;
+    doc.text(`HP: ${customer.phone}`, margin, currentY);
+    if(customer.address) {
+        currentY += 5;
+        doc.text(`Alamat: ${customer.address}`, margin, currentY);
+    }
+    currentY += 15;
+
+    // --- 2. TABLE HEADER ---
+    doc.setFillColor(240, 240, 240);
+    doc.rect(margin, currentY, pageWidth - (margin * 2), 8, 'F');
+    doc.setDrawColor(180, 180, 180);
+    doc.rect(margin, currentY, pageWidth - (margin * 2), 8, 'S');
+    
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.text("Tanggal", margin + 2, currentY + 5.5);
+    doc.text("Unit Kendaraan", margin + 40, currentY + 5.5);
+    doc.text("ID Transaksi", margin + 100, currentY + 5.5);
+    doc.text("Total (Rp)", pageWidth - margin - 3, currentY + 5.5, { align: 'right' });
+    currentY += 8;
+
+    // --- 3. ITEMS ---
+    let grandTotal = 0;
+    
+    const checkPageBreak = (needed: number) => {
+        if (currentY + needed > pageHeight - 30) {
+            doc.addPage();
+            currentY = 20;
+            // Redraw Header? Maybe simple header
+            return true;
+        }
+        return false;
+    };
+
+    bookings.forEach(b => {
+        grandTotal += b.totalPrice;
+        checkPageBreak(10);
+        
+        // Lookup car
+        const carName = b.isRentToRent 
+            ? (b.externalCarName || "Unit Luar") 
+            : (cars.find(c => c.id === b.carId)?.name || "Unknown");
+        const carPlate = b.isRentToRent 
+            ? (b.externalCarPlate || "") 
+            : (cars.find(c => c.id === b.carId)?.plate || "");
+
+        const dateRange = `${new Date(b.startDate).toLocaleDateString('id-ID')} - ${new Date(b.endDate).toLocaleDateString('id-ID')}`;
+
+        doc.rect(margin, currentY, pageWidth - (margin * 2), 10, 'S');
+        doc.setFont("helvetica", "normal");
+        
+        doc.text(dateRange, margin + 2, currentY + 6);
+        doc.text(`${carName} ${carPlate}`, margin + 40, currentY + 6);
+        doc.text(`#${b.id.slice(0,8)}`, margin + 100, currentY + 6);
+        doc.text(b.totalPrice.toLocaleString('id-ID'), pageWidth - margin - 3, currentY + 6, { align: 'right' });
+        
+        currentY += 10;
+    });
+
+    // --- 4. GRAND TOTAL ---
+    currentY += 2;
+    doc.setFillColor(245, 245, 245);
+    doc.rect(pageWidth / 2, currentY, pageWidth / 2 - margin, 10, 'F');
+    doc.rect(pageWidth / 2, currentY, pageWidth / 2 - margin, 10, 'S');
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("GRAND TOTAL", pageWidth / 2 + 5, currentY + 6.5);
+    doc.text(`Rp ${grandTotal.toLocaleString('id-ID')}`, pageWidth - margin - 3, currentY + 6.5, { align: 'right' });
+    currentY += 20;
+
+    // --- 5. PAYMENT TERMS ---
+    checkPageBreak(40);
+    doc.setFontSize(9);
+    doc.text("PEMBAYARAN TRANSFER KE:", margin, currentY);
+    currentY += 5;
+    doc.setFont("helvetica", "normal");
+    const termLines = doc.splitTextToSize(settings.paymentTerms, pageWidth - (margin * 2));
+    doc.text(termLines, margin, currentY);
+    
+    // --- 6. SIGNATURE ---
+    const sigY = currentY + 30;
+    if (sigY + 40 > pageHeight) {
+        doc.addPage();
+        currentY = 20;
+    } else {
+        currentY = sigY;
+    }
+    
+    const rightColX = pageWidth - margin - 60;
+    doc.text("Hormat Kami,", rightColX + 10, currentY, { align: 'center' });
+    
+    if (settings.stampUrl) {
+        try {
+            doc.addImage(settings.stampUrl, 'PNG', rightColX - 5, currentY - 5, 35, 35);
+        } catch (e) {}
+    }
+    
+    doc.line(rightColX - 10, currentY + 25, rightColX + 50, currentY + 25);
+    doc.setFont("helvetica", "bold");
+    doc.text(`(${settings.displayName || settings.companyName})`, rightColX + 20, currentY + 30, { align: 'center' });
+
+    doc.save(`Invoice_Kolektif_${customer.name.replace(/\s+/g, '_')}_${invId}.pdf`);
+};
+
+export const generateMonthlyReportPDF = (type: 'Driver' | 'Investor' | 'Vendor', entity: any, month: string, expenses: Transaction[], trips: Booking[]) => {
     const settings = getStoredData<AppSettings>('appSettings', DEFAULT_SETTINGS);
     const doc = new jsPDF();
     const margin = 15;

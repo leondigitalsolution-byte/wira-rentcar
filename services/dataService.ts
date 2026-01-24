@@ -1,7 +1,7 @@
 
 import { 
   Car, Driver, Partner, Customer, Booking, Transaction, AppSettings, HighSeason, 
-  BookingStatus, PaymentStatus 
+  BookingStatus, PaymentStatus, Vendor 
 } from '../types';
 import { db } from './firebaseConfig';
 import { collection, getDocs, doc, writeBatch, setDoc, getDoc } from 'firebase/firestore';
@@ -91,6 +91,7 @@ const KEYS = {
     CARS: 'cars',
     DRIVERS: 'drivers',
     PARTNERS: 'partners',
+    VENDORS: 'vendors',
     CUSTOMERS: 'customers',
     BOOKINGS: 'bookings',
     TRANSACTIONS: 'transactions',
@@ -267,7 +268,7 @@ export const initializeData = async () => {
 
                 // B. Sync Collections (Arrays) - Added USERS
                 const collectionsToSync = [
-                    KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.CUSTOMERS, 
+                    KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.VENDORS, KEYS.CUSTOMERS, 
                     KEYS.BOOKINGS, KEYS.TRANSACTIONS, KEYS.HIGH_SEASONS, KEYS.USERS
                 ];
 
@@ -329,7 +330,7 @@ export const initializeData = async () => {
 // Changed to Async
 export const clearAllData = async () => {
     // Note: We deliberately exclude KEYS.USERS from clearAllData to prevent accidental lockout of admin accounts
-    const keysToRemove = [KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.CUSTOMERS, KEYS.BOOKINGS, KEYS.TRANSACTIONS, KEYS.HIGH_SEASONS];
+    const keysToRemove = [KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.VENDORS, KEYS.CUSTOMERS, KEYS.BOOKINGS, KEYS.TRANSACTIONS, KEYS.HIGH_SEASONS];
     
     // Clear All
     await Promise.all(keysToRemove.map(async k => {
@@ -358,7 +359,11 @@ const generateDummyDataObjects = () => {
     ];
 
     const partners: Partner[] = [
-        { id: 'p1', name: 'Mitra Sejahtera', phone: '081233334444', splitPercentage: 70, image: 'https://i.pravatar.cc/150?u=p1' }
+        { id: 'p1', name: 'Investor Sejahtera', phone: '081233334444', splitPercentage: 70, image: 'https://i.pravatar.cc/150?u=p1' }
+    ];
+
+    const vendors: Vendor[] = [
+        { id: 'v1', name: 'Jaya Abadi Rent', phone: '0818777666', address: 'Jl. Ahmad Yani', image: 'https://i.pravatar.cc/150?u=v1' }
     ];
 
     const customers: Customer[] = [
@@ -389,7 +394,7 @@ const generateDummyDataObjects = () => {
         { id: 'tx3', date: today, amount: 50000, type: 'Expense', category: 'BBM', description: 'Isi Bensin Awal Avanza', relatedId: 'd1', status: 'Paid' }
     ];
 
-    return { cars, drivers, partners, customers, bookings, transactions, highSeasons: [] };
+    return { cars, drivers, partners, vendors, customers, bookings, transactions, highSeasons: [] };
 };
 
 // Changed to Async
@@ -400,6 +405,7 @@ export const generateDummyData = async () => {
     // Since setStoredData is now non-blocking for Firebase, this returns quickly after LocalStorage update
     await Promise.all([
         setStoredData(KEYS.PARTNERS, data.partners),
+        setStoredData(KEYS.VENDORS, data.vendors),
         setStoredData(KEYS.DRIVERS, data.drivers),
         setStoredData(KEYS.CARS, data.cars),
         setStoredData(KEYS.CUSTOMERS, data.customers),

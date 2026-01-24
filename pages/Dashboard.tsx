@@ -4,7 +4,7 @@ import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContai
 import { Booking, BookingStatus, Car, PaymentStatus, AppSettings, Transaction } from '../types';
 import { getStoredData, DEFAULT_SETTINGS } from '../services/dataService';
 import { getCurrentUser } from '../services/authService';
-import { AlertCircle, CheckCircle, TrendingUp, Car as CarIcon, Clock, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Map, Grid, User as UserIcon, Wallet, PieChart, UserCircle, Settings, Users, Percent, Filter, Navigation, CalendarRange, TrendingDown, Receipt, CalendarClock, UserCog, X, Calculator } from 'lucide-react';
+import { AlertCircle, CheckCircle, TrendingUp, Car as CarIcon, Clock, ChevronLeft, ChevronRight, Calendar as CalendarIcon, Map, Grid, User as UserIcon, Wallet, PieChart, UserCircle, Settings, Users, Percent, Filter, Navigation, CalendarRange, TrendingDown, Receipt, CalendarClock, UserCog, X, Calculator, Building, ReceiptText } from 'lucide-react';
 // @ts-ignore
 import { Link, useNavigate } from 'react-router-dom';
 import { Logo } from '../components/Logo';
@@ -234,7 +234,10 @@ const Dashboard = () => {
                       <button onClick={() => setIsMoreMenuOpen(false)} className="p-1 rounded-full bg-slate-100 text-slate-500 hover:text-red-600"><X size={20}/></button>
                   </div>
                   <div className="grid grid-cols-3 gap-4">
+                      <MenuItem to="/collective-invoice" icon={ReceiptText} label="Inv. Kolektif" onClick={() => setIsMoreMenuOpen(false)} />
+                      <MenuItem to="/vendors" icon={Building} label="Vendor" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/drivers" icon={UserCircle} label="Driver" onClick={() => setIsMoreMenuOpen(false)} />
+                      
                       <MenuItem to="/partners" icon={UserCog} label="Mitra" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/high-season" icon={CalendarClock} label="Highseason" onClick={() => setIsMoreMenuOpen(false)} />
                       <MenuItem to="/settings" icon={Settings} label="Setting" onClick={() => setIsMoreMenuOpen(false)} />

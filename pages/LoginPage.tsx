@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+// @ts-ignore
 import { useNavigate } from 'react-router-dom';
 import { login } from '../services/authService';
 import { Lock, User, ArrowRight, ShieldCheck, Zap, Hexagon, KeyRound } from 'lucide-react';
@@ -65,7 +66,7 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
 
           {/* WELCOME TEXT - FUTURISTIC EFFECT */}
           <div className="relative z-10 text-center mb-28 animate-fade-in group/text">
-              <h1 className="text-7xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-cyan-50 to-slate-400 drop-shadow-[0_0_35px_rgba(6,182,212,0.6)] group-hover/text:scale-105 transition-transform duration-500 cursor-default select-none">
+              <h1 className="text-5xl lg:text-6xl font-black tracking-tighter text-transparent bg-clip-text bg-gradient-to-b from-white via-cyan-50 to-slate-400 drop-shadow-[0_0_35px_rgba(6,182,212,0.6)] group-hover/text:scale-105 transition-transform duration-500 cursor-default select-none">
                   WELCOME BACK!
               </h1>
               {/* Decorative HUD Elements */}

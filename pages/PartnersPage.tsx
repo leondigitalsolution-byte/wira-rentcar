@@ -202,7 +202,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
       );
   };
 
-  const handleExport = () => exportToCSV(displayedPartners, 'Data_Investor_BRC');
+  const handleExport = () => exportToCSV(displayedPartners, 'Data_Investor_WiraRentCar');
   const handleImportClick = () => fileInputRef.current?.click();
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];

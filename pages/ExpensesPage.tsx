@@ -279,7 +279,7 @@ const ExpensesPage: React.FC<Props> = ({ isDriverView = false, isPartnerView = f
           alert('Tidak ada data untuk diexport');
           return;
       }
-      exportToCSV(displayedTransactions, 'Data_Keuangan_BRC');
+      exportToCSV(displayedTransactions, 'Data_Keuangan_WiraRentCar');
   };
 
   const isDriverCategory = ['Gaji', 'Reimbursement', 'BBM', 'Tol/Parkir'].includes(category);

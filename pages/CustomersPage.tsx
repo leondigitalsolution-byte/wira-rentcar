@@ -89,7 +89,7 @@ const CustomersPage: React.FC<Props> = ({ currentUser }) => {
       }
   };
 
-  const handleExport = () => exportToCSV(customers, 'Data_Pelanggan_BRC');
+  const handleExport = () => exportToCSV(customers, 'Data_Pelanggan_WiraRentCar');
   const handleImportClick = () => fileInputRef.current?.click();
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];

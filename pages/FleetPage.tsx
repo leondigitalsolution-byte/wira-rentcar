@@ -140,7 +140,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
       ? cars.filter(c => c.partnerId === currentUser.linkedPartnerId) 
       : cars;
 
-  const handleExport = () => exportToCSV(displayedCars, 'Data_Armada_BRC');
+  const handleExport = () => exportToCSV(displayedCars, 'Data_Armada_WiraRentCar');
   
   const handleImportClick = () => fileInputRef.current?.click();
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {

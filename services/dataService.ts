@@ -1,25 +1,23 @@
 
 import { 
   Car, Driver, Partner, Customer, Booking, Transaction, AppSettings, HighSeason, 
-  BookingStatus, PaymentStatus, Vendor 
+  BookingStatus, PaymentStatus 
 } from '../types';
 import { db } from './firebaseConfig';
 import { collection, getDocs, doc, writeBatch, setDoc, getDoc } from 'firebase/firestore';
 
 export const DEFAULT_SETTINGS: AppSettings = {
-  companyName: "Rent'O",
-  displayName: "Rent'O",
+  companyName: "Wira Rent Car",
+  displayName: "Wira Rent Car",
   tagline: 'Solusi Transportasi Terpercaya',
   address: 'Jl. Raya Merdeka No. 123, Jakarta',
   phone: '0851-9068-0660',
-  email: 'admin@rento.click',
-  website: 'rento.click',
+  email: 'admin@wirarentcar.com',
+  website: 'wirarentcar.com',
   invoiceFooter: 'Terima kasih atas kepercayaan Anda menggunakan jasa kami.',
-  logoUrl: null,
-  stampUrl: null,
   themeColor: 'red',
   darkMode: false,
-  paymentTerms: '1. Pembayaran DP minimal 30% saat booking.\n2. Pelunasan dilakukan saat serah terima unit.\n3. Pembayaran via Transfer BCA 1234567890 a.n Bersama Rent.',
+  paymentTerms: '1. Pembayaran DP minimal 30% saat booking.\n2. Pelunasan dilakukan saat serah terima unit.\n3. Pembayaran via Transfer BCA 1234567890 a.n Wira Rent Car.',
   termsAndConditions: `1. Persyaratan Sewa (Lepas Kunci)
 A. Untuk penyewaan tanpa pengemudi (self-drive), Penyewa wajib menyerahkan dokumen asli sebagai jaminan keamanan yang akan dikembalikan setelah masa sewa berakhir:
 B. Wajib: E-KTP Asli Penyewa.
@@ -91,7 +89,6 @@ const KEYS = {
     CARS: 'cars',
     DRIVERS: 'drivers',
     PARTNERS: 'partners',
-    VENDORS: 'vendors',
     CUSTOMERS: 'customers',
     BOOKINGS: 'bookings',
     TRANSACTIONS: 'transactions',
@@ -268,7 +265,7 @@ export const initializeData = async () => {
 
                 // B. Sync Collections (Arrays) - Added USERS
                 const collectionsToSync = [
-                    KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.VENDORS, KEYS.CUSTOMERS, 
+                    KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.CUSTOMERS, 
                     KEYS.BOOKINGS, KEYS.TRANSACTIONS, KEYS.HIGH_SEASONS, KEYS.USERS
                 ];
 
@@ -330,7 +327,7 @@ export const initializeData = async () => {
 // Changed to Async
 export const clearAllData = async () => {
     // Note: We deliberately exclude KEYS.USERS from clearAllData to prevent accidental lockout of admin accounts
-    const keysToRemove = [KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.VENDORS, KEYS.CUSTOMERS, KEYS.BOOKINGS, KEYS.TRANSACTIONS, KEYS.HIGH_SEASONS];
+    const keysToRemove = [KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.CUSTOMERS, KEYS.BOOKINGS, KEYS.TRANSACTIONS, KEYS.HIGH_SEASONS];
     
     // Clear All
     await Promise.all(keysToRemove.map(async k => {
@@ -362,10 +359,6 @@ const generateDummyDataObjects = () => {
         { id: 'p1', name: 'Investor Sejahtera', phone: '081233334444', splitPercentage: 70, image: 'https://i.pravatar.cc/150?u=p1' }
     ];
 
-    const vendors: Vendor[] = [
-        { id: 'v1', name: 'Jaya Abadi Rent', phone: '0818777666', address: 'Jl. Ahmad Yani', image: 'https://i.pravatar.cc/150?u=v1' }
-    ];
-
     const customers: Customer[] = [
         { id: 'cust1', name: 'Rina Wati', phone: '085677778888', address: 'Jl. Melati No. 5' },
         { id: 'cust2', name: 'PT. Maju Mundur', phone: '02155556666', address: 'Gedung Cyber Lt. 2' }
@@ -394,7 +387,7 @@ const generateDummyDataObjects = () => {
         { id: 'tx3', date: today, amount: 50000, type: 'Expense', category: 'BBM', description: 'Isi Bensin Awal Avanza', relatedId: 'd1', status: 'Paid' }
     ];
 
-    return { cars, drivers, partners, vendors, customers, bookings, transactions, highSeasons: [] };
+    return { cars, drivers, partners, customers, bookings, transactions, highSeasons: [] };
 };
 
 // Changed to Async
@@ -405,7 +398,6 @@ export const generateDummyData = async () => {
     // Since setStoredData is now non-blocking for Firebase, this returns quickly after LocalStorage update
     await Promise.all([
         setStoredData(KEYS.PARTNERS, data.partners),
-        setStoredData(KEYS.VENDORS, data.vendors),
         setStoredData(KEYS.DRIVERS, data.drivers),
         setStoredData(KEYS.CARS, data.cars),
         setStoredData(KEYS.CUSTOMERS, data.customers),

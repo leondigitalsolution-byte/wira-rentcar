@@ -8,7 +8,7 @@ const INITIAL_USERS: User[] = [
     username: 'super',
     password: '123',
     name: 'Super Admin',
-    email: 'super@brc.com',
+    email: 'super@WiraRentCar.com',
     phone: '081200000000',
     role: 'superadmin',
     image: 'https://i.pravatar.cc/150?u=super'
@@ -18,7 +18,7 @@ const INITIAL_USERS: User[] = [
     username: 'admin',
     password: '123',
     name: 'Staff Operasional',
-    email: 'admin@brc.com',
+    email: 'admin@WiraRentCar.com',
     phone: '081211111111',
     role: 'admin',
     image: 'https://i.pravatar.cc/150?u=admin'
@@ -28,7 +28,7 @@ const INITIAL_USERS: User[] = [
     username: 'driver',
     password: '123',
     name: 'Budi Santoso',
-    email: 'budi@brc.com',
+    email: 'budi@WiraRentCar.com',
     phone: '081234567890',
     role: 'driver',
     linkedDriverId: 'd1', // Link to dummy driver Budi

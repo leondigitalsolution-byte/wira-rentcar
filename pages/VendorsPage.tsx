@@ -177,7 +177,7 @@ const VendorsPage = () => {
       );
   };
 
-  const handleExport = () => exportToCSV(vendors, 'Data_Vendor_BRC');
+  const handleExport = () => exportToCSV(vendors, 'Data_Vendor_WiraRentCar');
   const handleImportClick = () => fileInputRef.current?.click();
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];

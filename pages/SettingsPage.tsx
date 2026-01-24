@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { AppSettings, User, Driver, Partner } from '../types';
 import { getStoredData, setStoredData, DEFAULT_SETTINGS, compressImage } from '../services/dataService';
 import { getUsers, saveUser, deleteUser } from '../services/authService';
-import { FileText, Trash2, List, UserCog, X, MessageCircle, Image as ImageIcon, HelpCircle, Palette, Moon, Sun, ChevronDown, ChevronUp, BookOpen, Link as LinkIcon, Camera, Zap, Building, Wallet, ReceiptText, ShieldCheck } from 'lucide-react';
+import { FileText, Trash2, List, UserCog, X, MessageCircle, Image as ImageIcon, HelpCircle, Palette, Moon, Sun, ChevronDown, ChevronUp, BookOpen, Link as LinkIcon, Camera, Zap, Building, Wallet, ReceiptText, ShieldCheck, Smartphone, Share, PlusSquare, ArrowUp } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
 interface Props {
@@ -236,7 +236,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           
-          {/* HELP TAB - UPDATED CONTENT */}
           {activeTab === 'help' && (
               <div className="space-y-8 animate-fade-in">
                   <div className="flex items-center gap-4 border-b dark:border-slate-700 pb-6">
@@ -244,8 +243,71 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                         <BookOpen size={36} />
                       </div>
                       <div>
-                          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Pusat Bantuan Rento.click</h3>
+                          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Pusat Bantuan</h3>
                           <p className="text-sm text-slate-500 dark:text-slate-400">Pelajari otomasi sistem dan manajemen rental profesional.</p>
+                      </div>
+                  </div>
+
+                  {/* INSTALLATION GUIDE SECTION */}
+                  <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
+                      <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
+                      <h4 className="text-lg font-black uppercase tracking-tighter mb-4 flex items-center gap-2">
+                          <Smartphone size={24}/> Panduan Instalasi Aplikasi (PWA)
+                      </h4>
+                      <p className="text-sm text-indigo-100 mb-6 leading-relaxed">Instal aplikasi ini ke layar utama HP Anda agar bisa diakses secara instan seperti aplikasi dari Play Store/App Store tanpa perlu download file besar.</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          {/* Android/Chrome */}
+                          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20">
+                              <div className="flex items-center gap-3 mb-4">
+                                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 font-bold">A</div>
+                                  <h5 className="font-bold">Android (Google Chrome)</h5>
+                              </div>
+                              <ul className="space-y-3 text-xs">
+                                  <li className="flex gap-2">
+                                      <span className="font-black opacity-50">01</span>
+                                      <span>Buka <strong>wirarentcar.site</strong> di browser Chrome Anda.</span>
+                                  </li>
+                                  <li className="flex gap-2">
+                                      <span className="font-black opacity-50">02</span>
+                                      <span>Klik ikon **Tiga Titik (⋮)** di pojok kanan atas.</span>
+                                  </li>
+                                  <li className="flex gap-2">
+                                      <span className="font-black opacity-50">03</span>
+                                      <span className="flex items-center gap-1">Pilih menu **"Instal Aplikasi"** atau **"Tambahkan ke Layar Utama"**. <Smartphone size={12}/></span>
+                                  </li>
+                                  <li className="flex gap-2">
+                                      <span className="font-black opacity-50">04</span>
+                                      <span>Ikon aplikasi akan muncul di menu HP Anda!</span>
+                                  </li>
+                              </ul>
+                          </div>
+
+                          {/* iOS/Safari */}
+                          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20">
+                              <div className="flex items-center gap-3 mb-4">
+                                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 font-bold">i</div>
+                                  <h5 className="font-bold">iOS / iPhone (Safari)</h5>
+                              </div>
+                              <ul className="space-y-3 text-xs">
+                                  <li className="flex gap-2">
+                                      <span className="font-black opacity-50">01</span>
+                                      <span>Buka link aplikasi di browser **Safari**.</span>
+                                  </li>
+                                  <li className="flex gap-2">
+                                      <span className="font-black opacity-50">02</span>
+                                      <span className="flex items-center gap-1">Klik tombol **Share** (Kotak dengan panah atas <Share size={12}/>) di bawah.</span>
+                                  </li>
+                                  <li className="flex gap-2">
+                                      <span className="font-black opacity-50">03</span>
+                                      <span className="flex items-center gap-1">Gulir ke bawah dan klik **"Add to Home Screen"** (<PlusSquare size={12}/>).</span>
+                                  </li>
+                                  <li className="flex gap-2">
+                                      <span className="font-black opacity-50">04</span>
+                                      <span>Klik **"Add"** di pojok kanan atas. Selesai!</span>
+                                  </li>
+                              </ul>
+                          </div>
                       </div>
                   </div>
                   
@@ -278,7 +340,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                         </div>
                   </div>
 
-                  {/* FAQ SECTIONS - UPDATED */}
                   <div className="space-y-4">
                       <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2">
                           <Zap size={14}/> Operasional & Jadwal
@@ -311,31 +372,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                       <FaqItem 
                         question="Apa kegunaan fitur Invoice Kolektif?" 
                         answer="Digunakan khusus untuk pelanggan tetap atau instansi yang menyewa berkali-kali namun pembayarannya digabung di akhir bulan. Anda bisa memilih beberapa transaksi sekaligus dan sistem akan menghasilkan satu file PDF gabungan." 
-                      />
-                      <FaqItem 
-                        question="Mengapa saya harus mengunggah foto Dashboard?" 
-                        answer="Foto Dashboard (Speedometer & Fuel) pada saat Checklist Serah Terima sangat penting sebagai bukti otentik posisi KM dan Bahan Bakar untuk mencegah perselisihan dengan penyewa saat unit kembali." 
-                      />
-
-                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-8 mb-4 flex items-center gap-2">
-                          <Wallet size={14}/> Keuangan & Bagi Hasil
-                      </h4>
-                      <FaqItem 
-                        question="Bagaimana sistem mencatat bagi hasil Investor?" 
-                        answer={
-                            <div className="space-y-2">
-                                <p>Jika mobil diatur sebagai milik <strong>'Investor'</strong> di menu Armada, maka setiap transaksi yang lunas (Paid) dan selesai (Completed) akan otomatis memicu <strong>Pengeluaran (Expense) Pending</strong> untuk setoran investor tersebut.</p>
-                                <p>Nominal dihitung dari (Harga Sewa + Overtime + Highseason) dikali persentase split yang diatur di data Investor.</p>
-                            </div>
-                        }
-                      />
-                      <FaqItem 
-                        question="Cara mencatat Gaji Driver atau Komisi?" 
-                        answer="Sama seperti Investor, jika booking menggunakan Driver, sistem akan otomatis membuat draf pengeluaran 'Gaji' di menu Keuangan saat status sewa diselesaikan. Admin hanya perlu mengklik 'Bayar' dan upload bukti transfer untuk menyelesaikannya." 
-                      />
-                      <FaqItem 
-                        question="Bagaimana melihat laporan Laba Rugi?" 
-                        answer="Buka menu 'Statistik'. Sistem akan menampilkan grafik Pemasukan vs Pengeluaran. Total keuntungan bersih dihitung dari Pemasukan Lunas dikurangi Pengeluaran Lunas (Gaji, Vendor, Investor, dan Operasional Kantor)." 
                       />
                   </div>
 
@@ -427,7 +463,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                      </div>
                      <div>
                          <label className="block text-sm font-medium mb-1 dark:text-slate-200">Nama Display Aplikasi (Singkat)</label>
-                         <input disabled={!isSuperAdmin} name="displayName" value={settings.displayName} onChange={handleChange} className="w-full border rounded p-2" placeholder="Contoh: BRC" />
+                         <input disabled={!isSuperAdmin} name="displayName" value={settings.displayName} onChange={handleChange} className="w-full border rounded p-2" placeholder="Contoh: WiraRentCar" />
                      </div>
                      <div>
                          <label className="block text-sm font-medium mb-1 dark:text-slate-200">Tagline</label>

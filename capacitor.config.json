@@ -1,7 +1,7 @@
 
 {
-  "appId": "com.rento.click",
-  "appName": "Rento BRC",
+  "appId": "com.wirarentcar.site",
+  "appName": "WIRA RENT CAR",
   "webDir": "dist",
   "server": {
     "androidScheme": "https"

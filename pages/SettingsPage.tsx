@@ -5,7 +5,7 @@ import { useLocation } from 'react-router-dom';
 import { AppSettings, User, Driver, Partner } from '../types';
 import { getStoredData, setStoredData, DEFAULT_SETTINGS, compressImage } from '../services/dataService';
 import { getUsers, saveUser, deleteUser } from '../services/authService';
-import { FileText, Trash2, List, UserCog, X, MessageCircle, Image as ImageIcon, HelpCircle, Palette, Moon, Sun, ChevronDown, ChevronUp, BookOpen, Link as LinkIcon, Camera } from 'lucide-react';
+import { FileText, Trash2, List, UserCog, X, MessageCircle, Image as ImageIcon, HelpCircle, Palette, Moon, Sun, ChevronDown, ChevronUp, BookOpen, Link as LinkIcon, Camera, Zap, Building, Wallet, ReceiptText, ShieldCheck } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
 interface Props {
@@ -16,18 +16,18 @@ interface Props {
 const FaqItem = ({ question, answer }: { question: string, answer: React.ReactNode }) => {
     const [isOpen, setIsOpen] = useState(false);
     return (
-        <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden bg-white dark:bg-slate-800">
+        <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
             <button 
                 onClick={() => setIsOpen(!isOpen)}
                 className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
             >
-                <span className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-2">
-                    <HelpCircle size={16} className="text-indigo-600"/> {question}
+                <span className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-3">
+                    <HelpCircle size={18} className="text-indigo-600 flex-shrink-0"/> {question}
                 </span>
-                {isOpen ? <ChevronUp size={16} className="text-slate-400"/> : <ChevronDown size={16} className="text-slate-400"/>}
+                {isOpen ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
             </button>
             {isOpen && (
-                <div className="p-4 pt-0 text-sm text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-700 bg-slate-50/50 dark:bg-slate-800/50 mt-2">
+                <div className="p-4 pt-0 text-sm text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30">
                     <div className="pt-3">{answer}</div>
                 </div>
             )}
@@ -149,45 +149,26 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
       setPhone(u.phone || '');
       setRole(u.role);
       setUserImage(u.image || null);
-      
-      // Set Linked IDs based on user data
       setLinkedDriverId(u.linkedDriverId || '');
       setLinkedPartnerId(u.linkedPartnerId || '');
-      
       window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const resetUserForm = () => {
       setEditingUserId(null);
-      setUsername(''); 
-      setPassword(''); 
-      setFullName(''); 
-      setEmail(''); 
-      setPhone(''); 
-      setUserImage(null); 
-      setRole('admin');
-      setLinkedDriverId('');
-      setLinkedPartnerId('');
+      setUsername(''); setPassword(''); setFullName(''); setEmail(''); setPhone(''); setUserImage(null); setRole('admin');
+      setLinkedDriverId(''); setLinkedPartnerId('');
   };
 
   const handleSaveUser = (e: React.FormEvent) => {
       e.preventDefault();
       if (!username || !password || !fullName) return;
-      
       const userPayload: User = {
           id: editingUserId || `u-${Date.now()}`,
-          username,
-          password,
-          name: fullName,
-          email,
-          phone,
-          role: role as any,
-          image: userImage,
-          // Only save linkage if role matches
+          username, password, name: fullName, email, phone, role: role as any, image: userImage,
           linkedDriverId: role === 'driver' ? linkedDriverId : undefined,
           linkedPartnerId: role === 'partner' ? linkedPartnerId : undefined
       };
-
       saveUser(userPayload);
       setUsers(getUsers());
       resetUserForm();
@@ -255,75 +236,115 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           
-          {/* HELP TAB */}
+          {/* HELP TAB - UPDATED CONTENT */}
           {activeTab === 'help' && (
-              <div className="space-y-6 animate-fade-in">
-                  <div className="flex items-center gap-3 border-b dark:border-slate-700 pb-4">
-                      <BookOpen size={32} className="text-indigo-600" />
+              <div className="space-y-8 animate-fade-in">
+                  <div className="flex items-center gap-4 border-b dark:border-slate-700 pb-6">
+                      <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600">
+                        <BookOpen size={36} />
+                      </div>
                       <div>
-                          <h3 className="text-xl font-bold text-slate-800 dark:text-slate-100">Pusat Bantuan & Panduan</h3>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">Pelajari cara menggunakan fitur aplikasi secara maksimal.</p>
+                          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Pusat Bantuan Rento.click</h3>
+                          <p className="text-sm text-slate-500 dark:text-slate-400">Pelajari otomasi sistem dan manajemen rental profesional.</p>
                       </div>
                   </div>
                   
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                        <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-lg border border-slate-100 dark:border-slate-600">
-                            <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-2">Role Anda: <span className="uppercase text-indigo-600">{currentUser.role === 'partner' ? 'Investor' : currentUser.role}</span></h4>
-                            <p className="text-sm text-slate-500 dark:text-slate-400">
-                                Anda memiliki akses {currentUser.role === 'superadmin' ? 'Penuh (Full Access)' : 'Terbatas'} ke fitur sistem.
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-600">
+                            <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
+                                <ShieldCheck size={16} className="text-green-500"/> Akses Anda
+                            </h4>
+                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
+                                Role: <span className="uppercase font-bold text-indigo-600">{currentUser.role === 'partner' ? 'Investor' : currentUser.role}</span>. 
+                                Anda memiliki izin untuk mengelola {currentUser.role === 'superadmin' ? 'seluruh sistem' : 'data operasional harian'}.
                             </p>
                         </div>
-                        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg border border-indigo-100 dark:border-indigo-800">
-                            <h4 className="font-bold text-indigo-800 dark:text-indigo-200 mb-2">Butuh Bantuan Teknis?</h4>
-                            <p className="text-sm text-indigo-600 dark:text-indigo-300">
-                                Hubungi IT Support: <strong>{settings.email}</strong> atau WhatsApp ke <strong>{settings.phone}</strong>
+                        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
+                            <h4 className="font-bold text-indigo-800 dark:text-indigo-200 mb-2 flex items-center gap-2">
+                                <Zap size={16}/> Sistem Otomatis
+                            </h4>
+                            <p className="text-xs text-indigo-600 dark:text-indigo-300 leading-relaxed">
+                                Aplikasi ini menggunakan sistem **Anti-Bentrok Otomatis** yang mengunci jadwal secara real-time saat booking dikonfirmasi.
+                            </p>
+                        </div>
+                        <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
+                            <h4 className="font-bold text-purple-800 dark:text-purple-200 mb-2 flex items-center gap-2">
+                                <MessageCircle size={16}/> Hubungi Support
+                            </h4>
+                            <p className="text-xs text-purple-600 dark:text-purple-300 leading-relaxed">
+                                WhatsApp: <strong>{settings.phone}</strong><br/>
+                                Email: <strong>{settings.email}</strong>
                             </p>
                         </div>
                   </div>
 
-                  {/* FAQ SECTIONS */}
+                  {/* FAQ SECTIONS - UPDATED */}
                   <div className="space-y-4">
-                      <h4 className="font-bold text-lg text-slate-800 dark:text-white border-l-4 border-indigo-500 pl-3">Booking & Transaksi</h4>
+                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2">
+                          <Zap size={14}/> Operasional & Jadwal
+                      </h4>
                       <FaqItem 
-                        question="Bagaimana cara memasukkan Booking baru?" 
-                        answer="Masuk ke menu 'Booking & Jadwal', lalu klik tab 'Input Baru'. Isi data lengkap mulai dari tanggal sewa, pilih mobil yang tersedia (sistem akan otomatis mencegah bentrok), data pelanggan, hingga rincian pembayaran (DP)." 
+                        question="Bagaimana cara kerja fitur Anti-Bentrok?" 
+                        answer={
+                            <div className="space-y-2">
+                                <p>Sistem melakukan pengecekan ketersediaan secara instan. Saat Anda memilih tanggal/jam sewa di tab <strong>'Input Baru'</strong>, sistem akan menyaring armada yang sedang jalan (Active) atau sudah dipesan (Booked) pada jam tersebut.</p>
+                                <p className="font-bold text-indigo-600 italic">Tips: Gunakan menu 'Timeline' untuk melihat visualisasi jadwal seluruh armada dalam satu bulan.</p>
+                            </div>
+                        }
                       />
                       <FaqItem 
-                        question="Apa itu fitur Anti-Bentrok Jadwal?" 
-                        answer="Sistem secara otomatis mengecek ketersediaan mobil. Jika mobil sudah dipesan pada tanggal/jam yang dipilih, mobil tersebut tidak akan muncul atau ditandai 'Bentrok' pada saat pemilihan unit, sehingga mencegah double booking." 
+                        question="Apa itu fitur Rent to Rent / Unit Luar?" 
+                        answer="Fitur ini digunakan jika Anda menyewa mobil dari rental lain (Vendor) untuk disewakan kembali ke pelanggan Anda. Anda bisa mencatat Biaya Vendor (HPP) yang akan otomatis tercatat sebagai pengeluaran (Expense) saat transaksi selesai." 
                       />
                       <FaqItem 
-                        question="Bagaimana cara mencetak Invoice atau Nota?" 
-                        answer="Setelah booking dibuat, cari booking tersebut di daftar. Klik tombol ikon 'Petir' (⚡) untuk mengunduh Invoice PDF resmi. Anda juga bisa klik ikon WhatsApp untuk mengirim rincian via chat." 
-                      />
-                      <FaqItem 
-                        question="Bagaimana mencatat pelunasan sewa?" 
-                        answer="Cari booking di daftar, jika status pembayaran belum lunas, akan muncul tombol 'Lunasi' berwarna hijau. Klik tombol tersebut, masukkan sisa pembayaran, dan simpan." 
-                      />
-
-                      <h4 className="font-bold text-lg text-slate-800 dark:text-white border-l-4 border-indigo-500 pl-3 mt-6">Armada & Driver</h4>
-                      <FaqItem 
-                        question="Bagaimana cara menambah Unit Mobil?" 
-                        answer="Masuk ke menu 'Armada Mobil', klik tombol 'Tambah Mobil'. Isi data mobil, plat nomor, upload foto, dan tentukan harga sewa dasar. Anda juga bisa mengaitkan mobil dengan Investor pemilik jika mobil tersebut titipan." 
-                      />
-                      <FaqItem 
-                        question="Bagaimana cara menghitung gaji driver?" 
-                        answer="Saat membuat booking dengan driver, sistem mencatat 'Fee Driver'. Di menu 'Data Driver' -> 'Riwayat', Anda bisa melihat total perjalanan dan mengunduh laporan bulanan untuk perhitungan gaji/komisi." 
+                        question="Kapan status Booking berubah otomatis?" 
+                        answer="Status otomatis menjadi 'Active' setelah Anda menyimpan Checklist Serah Terima. Status menjadi 'Completed' saat Anda mengisi Tanggal/Jam Pengembalian Aktual di form edit booking." 
                       />
 
-                      <h4 className="font-bold text-lg text-slate-800 dark:text-white border-l-4 border-indigo-500 pl-3 mt-6">Keuangan & Laporan</h4>
+                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-8 mb-4 flex items-center gap-2">
+                          <ReceiptText size={14}/> Invoice & Dokumentasi
+                      </h4>
                       <FaqItem 
-                        question="Bagaimana cara mencatat pengeluaran operasional?" 
-                        answer="Masuk ke menu 'Keuangan' -> klik 'Catat Pengeluaran'. Pilih kategori (Bensin, Service, Kantor, dll), masukkan nominal, dan upload foto nota jika ada." 
+                        question="Bagaimana cara kirim Nota lewat WhatsApp?" 
+                        answer="Di tab 'Daftar Booking', klik tombol ikon WhatsApp pada baris transaksi. Sistem akan membuka WhatsApp Web/Aplikasi dengan template pesan profesional yang sudah terisi rincian unit, harga, dan sisa tagihan." 
                       />
                       <FaqItem 
-                        question="Apa bedanya status 'Paid' dan 'Pending'?" 
-                        answer="Status 'Paid' berarti uang sudah keluar/masuk kas. Status 'Pending' (Menunggu) digunakan untuk tagihan yang belum dibayar, misalnya gaji driver yang akan dibayar akhir bulan atau setoran investor yang ditahan sementara." 
+                        question="Apa kegunaan fitur Invoice Kolektif?" 
+                        answer="Digunakan khusus untuk pelanggan tetap atau instansi yang menyewa berkali-kali namun pembayarannya digabung di akhir bulan. Anda bisa memilih beberapa transaksi sekaligus dan sistem akan menghasilkan satu file PDF gabungan." 
                       />
                       <FaqItem 
-                        question="Bagaimana cara melihat Laporan Laba/Rugi?" 
-                        answer="Masuk ke menu 'Laporan & Statistik'. Sistem otomatis menghitung Total Pemasukan (dari booking) dikurangi Total Pengeluaran. Anda bisa filter berdasarkan tanggal dan download PDF laporannya." 
+                        question="Mengapa saya harus mengunggah foto Dashboard?" 
+                        answer="Foto Dashboard (Speedometer & Fuel) pada saat Checklist Serah Terima sangat penting sebagai bukti otentik posisi KM dan Bahan Bakar untuk mencegah perselisihan dengan penyewa saat unit kembali." 
                       />
+
+                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-8 mb-4 flex items-center gap-2">
+                          <Wallet size={14}/> Keuangan & Bagi Hasil
+                      </h4>
+                      <FaqItem 
+                        question="Bagaimana sistem mencatat bagi hasil Investor?" 
+                        answer={
+                            <div className="space-y-2">
+                                <p>Jika mobil diatur sebagai milik <strong>'Investor'</strong> di menu Armada, maka setiap transaksi yang lunas (Paid) dan selesai (Completed) akan otomatis memicu <strong>Pengeluaran (Expense) Pending</strong> untuk setoran investor tersebut.</p>
+                                <p>Nominal dihitung dari (Harga Sewa + Overtime + Highseason) dikali persentase split yang diatur di data Investor.</p>
+                            </div>
+                        }
+                      />
+                      <FaqItem 
+                        question="Cara mencatat Gaji Driver atau Komisi?" 
+                        answer="Sama seperti Investor, jika booking menggunakan Driver, sistem akan otomatis membuat draf pengeluaran 'Gaji' di menu Keuangan saat status sewa diselesaikan. Admin hanya perlu mengklik 'Bayar' dan upload bukti transfer untuk menyelesaikannya." 
+                      />
+                      <FaqItem 
+                        question="Bagaimana melihat laporan Laba Rugi?" 
+                        answer="Buka menu 'Statistik'. Sistem akan menampilkan grafik Pemasukan vs Pengeluaran. Total keuntungan bersih dihitung dari Pemasukan Lunas dikurangi Pengeluaran Lunas (Gaji, Vendor, Investor, dan Operasional Kantor)." 
+                      />
+                  </div>
+
+                  <div className="bg-slate-900 rounded-2xl p-6 text-white text-center">
+                      <h4 className="font-bold text-lg mb-2">Masih bingung dengan sistem?</h4>
+                      <p className="text-slate-400 text-sm mb-4">Kami siap membantu optimasi operasional rental Anda.</p>
+                      <button onClick={() => window.open(`https://wa.me/${settings.phone.replace(/\D/g, '')}`, '_blank')} className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-full font-bold transition-all inline-flex items-center gap-2">
+                          <MessageCircle size={18}/> Konsultasi Langsung
+                      </button>
                   </div>
               </div>
           )}
@@ -444,7 +465,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                          <textarea disabled={!isSuperAdmin} name="invoiceFooter" value={settings.invoiceFooter} onChange={handleChange} className="w-full border rounded p-2" rows={1} />
                      </div>
 
-                     {/* WHATSAPP TEMPLATE */}
                      <div className="md:col-span-2 pt-4 border-t mt-2 dark:border-slate-700">
                         <h3 className="font-bold text-slate-800 dark:text-slate-200 mb-3 flex items-center gap-2"><MessageCircle size={18}/> Format Chat WhatsApp</h3>
                         <textarea 
@@ -463,7 +483,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
 
           {activeTab === 'master' && isSuperAdmin && (
               <div className="space-y-8 animate-fade-in">
-                  {/* Car Categories */}
                   <div>
                       <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800 dark:text-slate-200"><List size={20}/> Kategori Mobil</h3>
                       <div className="flex gap-2 mb-4">
@@ -569,8 +588,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                     <option value="superadmin">Super Admin</option>
                                 </select>
                             </div>
-                            
-                            {/* DYNAMIC LINKING FIELDS */}
                             {role === 'driver' && (
                                 <div className="md:col-span-2 bg-yellow-50 border border-yellow-100 p-3 rounded-lg animate-in fade-in slide-in-from-top-2">
                                     <label className="block text-xs font-bold uppercase text-yellow-800 mb-1 flex items-center gap-1">
@@ -587,7 +604,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                     </p>
                                 </div>
                             )}
-
                             {role === 'partner' && (
                                 <div className="md:col-span-2 bg-purple-50 border border-purple-100 p-3 rounded-lg animate-in fade-in slide-in-from-top-2">
                                     <label className="block text-xs font-bold uppercase text-purple-800 mb-1 flex items-center gap-1">
@@ -604,7 +620,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                     </p>
                                 </div>
                             )}
-
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Username</label>
                                 <input required value={username} onChange={e => setUsername(e.target.value)} className="w-full border rounded p-2" placeholder="username_login" />

@@ -1,9 +1,9 @@
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Partner, Booking, Car, User, Transaction } from '../types';
+import { Partner, Booking, Car, User, Transaction, BookingStatus } from '../types';
 import { getStoredData, setStoredData, exportToCSV, processCSVImport, mergeData, compressImage } from '../services/dataService';
 import { generateMonthlyReportPDF } from '../services/pdfService';
-import { Plus, Trash2, Phone, Edit2, X, History, Calendar, CheckCircle, Wallet, Download, Upload, FileText, Filter, Camera, UserCog } from 'lucide-react';
+import { Plus, Trash2, Phone, Edit2, X, History, Calendar, CheckCircle, Wallet, Download, Upload, FileText, Filter, Camera, UserCog, FileSpreadsheet } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -68,7 +68,6 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
       setHistoryPartner(partner);
       setActiveHistoryTab('bookings');
 
-      // Default Filter: Current Month
       const date = new Date();
       const firstDay = new Date(date.getFullYear(), date.getMonth(), 1).toISOString().split('T')[0];
       const lastDay = new Date(date.getFullYear(), date.getMonth() + 1, 0).toISOString().split('T')[0];
@@ -120,7 +119,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
   };
 
   const handleDelete = (id: string) => {
-      if(window.confirm('Konfirmasi Persetujuan: Apakah Anda yakin ingin menghapus data investor ini secara permanen? Tindakan ini hanya dapat dilakukan dengan wewenang Superadmin.')) {
+      if(window.confirm('Hapus data investor ini secara permanen?')) {
           setPartners(prev => {
               const updated = prev.filter(p => p.id !== id);
               setStoredData('partners', updated);
@@ -131,14 +130,12 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
 
   const calculatePartnerIncome = (partnerId: string) => {
       const partnerCarIds = cars.filter(c => c.partnerId === partnerId).map(c => c.id);
-      
       const totalRevenue = bookings
-        .filter(b => partnerCarIds.includes(b.carId) && b.status !== 'Cancelled')
+        .filter(b => partnerCarIds.includes(b.carId) && b.status !== BookingStatus.CANCELLED)
         .reduce((sum, b) => sum + b.totalPrice, 0);
 
       const partner = partners.find(p => p.id === partnerId);
       const split = partner ? partner.splitPercentage / 100 : 0;
-      
       return totalRevenue * split;
   };
 
@@ -149,10 +146,8 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
   const getPartnerBookings = () => {
       if(!historyPartner) return [];
       const partnerCarIds = cars.filter(c => c.partnerId === historyPartner.id).map(c => c.id);
-      
-      let filtered = bookings.filter(b => partnerCarIds.includes(b.carId));
+      let filtered = bookings.filter(b => partnerCarIds.includes(b.carId) && b.status !== BookingStatus.CANCELLED);
 
-      // Apply Date Filter
       if (historyStartDate || historyEndDate) {
           filtered = filtered.filter(b => {
               const date = b.startDate.split('T')[0];
@@ -161,16 +156,13 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
               return date >= start && date <= end;
           });
       }
-
       return filtered.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
   };
 
   const getPartnerDeposits = () => {
       if(!historyPartner) return [];
-      // Also match 'Setor Mitra' for backward compatibility
       let filtered = transactions.filter(t => (t.category === 'Setor Investor' || t.category === 'Setor Mitra') && t.relatedId === historyPartner.id);
 
-      // Apply Date Filter
       if (historyStartDate || historyEndDate) {
           filtered = filtered.filter(t => {
               const date = t.date.split('T')[0];
@@ -179,27 +171,35 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
               return date >= start && date <= end;
           });
       }
-
       return filtered.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   };
 
-  // Redirect to Expenses Page with state to trigger modal opening for payment
   const handlePayTransaction = (id: string) => {
       navigate('/expenses', { state: { action: 'pay', transactionId: id } });
   };
 
   const handleDownloadReport = () => {
       if (!historyPartner) return;
-      // Use the start date's month for the PDF header, or current month if filter is cleared
       const month = historyStartDate ? historyStartDate.slice(0, 7) : new Date().toISOString().slice(0, 7);
-      
-      generateMonthlyReportPDF(
-          'Investor',
-          historyPartner,
-          month,
-          getPartnerDeposits(),
-          getPartnerBookings()
-      );
+      generateMonthlyReportPDF('Investor', historyPartner, month, getPartnerDeposits(), getPartnerBookings());
+  };
+
+  const handleExportExcel = () => {
+      if (!historyPartner) return;
+      const data = activeHistoryTab === 'bookings' ? getPartnerBookings().map(b => ({
+          ID: b.id,
+          Tanggal: new Date(b.startDate).toLocaleDateString('id-ID'),
+          Pelanggan: b.customerName,
+          Total_Harga: b.totalPrice,
+          Status: b.status
+      })) : getPartnerDeposits().map(t => ({
+          Tanggal: new Date(t.date).toLocaleDateString('id-ID'),
+          Kategori: t.category,
+          Deskripsi: t.description,
+          Nominal: t.amount,
+          Status: t.status
+      }));
+      exportToCSV(data, `Laporan_Investor_${historyPartner.name}_${activeHistoryTab}`);
   };
 
   const handleExport = () => exportToCSV(displayedPartners, 'Data_Investor_WiraRentCar');
@@ -210,10 +210,9 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
           processCSVImport(file, (data) => {
               const imported: Partner[] = data.map((d: any) => d as Partner);
               const merged = mergeData(partners, imported);
-              
               setPartners(merged);
               setStoredData('partners', merged);
-              alert('Data investor berhasil diproses (Update/Insert)!');
+              alert('Data investor berhasil diproses!');
           });
       }
   };
@@ -276,7 +275,6 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                             )}
                         </div>
                     </div>
-                    
                     <div className="grid grid-cols-2 gap-4 bg-slate-50 p-4 rounded-lg border border-slate-100 mb-4">
                         <div>
                             <p className="text-xs text-slate-500 uppercase">Unit Mobil</p>
@@ -287,13 +285,11 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                             <p className="font-bold text-xl text-indigo-600">Rp {income.toLocaleString('id-ID')}</p>
                         </div>
                     </div>
-
                     <div className="flex flex-col gap-2">
                         <button onClick={() => openHistoryModal(partner)} className="w-full py-2 text-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium">
                             <History size={16} /> Riwayat & Detail
                         </button>
                     </div>
-
                     <div className="text-sm text-slate-500 mt-4 pt-4 border-t border-slate-100">
                         <p className="mb-2 font-medium">Mobil Dimiliki:</p>
                         <ul className="list-disc pl-5 space-y-1">
@@ -308,7 +304,6 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
           })}
       </div>
 
-       {/* Modal Create/Edit */}
        {isModalOpen && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
               <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-xl max-h-[90vh] overflow-y-auto">
@@ -323,12 +318,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                               {imagePreview ? (
                                   <>
                                       <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                                      <button 
-                                          type="button"
-                                          onClick={handleRemoveImage}
-                                          className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
-                                          title="Hapus Foto"
-                                      >
+                                      <button type="button" onClick={handleRemoveImage} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white" title="Hapus Foto">
                                           <X size={20} />
                                       </button>
                                   </>
@@ -338,15 +328,9 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                                       <span className="text-[10px]">Foto</span>
                                   </div>
                               )}
-                              <input 
-                                  type="file" 
-                                  accept="image/*" 
-                                  className="absolute inset-0 opacity-0 cursor-pointer"
-                                  onChange={handleImageUpload}
-                              />
+                              <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
                           </div>
                       </div>
-
                       <div>
                           <label className="block text-sm font-medium text-slate-700">Nama Investor</label>
                           <input required type="text" className="w-full border rounded-lg p-2.5 mt-1" value={name} onChange={e => setName(e.target.value)} />
@@ -362,7 +346,6 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                             <span className="text-slate-500 font-bold">%</span>
                           </div>
                       </div>
-
                       <div className="flex gap-3 mt-6 pt-4 border-t">
                           <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium">Batal</button>
                           <button disabled={isUploading} type="submit" className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200 disabled:opacity-50">
@@ -374,11 +357,10 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
           </div>
       )}
 
-      {/* HISTORY MODAL */}
       {isHistoryModalOpen && historyPartner && (
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
                <div className="bg-white rounded-xl w-full max-w-3xl p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-                    <div className="flex justify-between items-start mb-6">
+                    <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
                          <div className="flex items-center gap-4">
                             <img src={historyPartner.image} alt={historyPartner.name} className="w-14 h-14 rounded-full bg-slate-200 object-cover border-2 border-slate-100" />
                             <div>
@@ -386,46 +368,28 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                                 <p className="text-sm text-slate-500">Detail Riwayat & Setoran</p>
                             </div>
                          </div>
-                         <div className="flex gap-2">
-                             <button onClick={handleDownloadReport} className="flex items-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-sm hover:bg-slate-900">
-                                 <FileText size={16}/> Download Laporan Bulanan
-                             </button>
-                             <button onClick={() => setIsHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+                         <div className="flex gap-2 w-full sm:w-auto">
+                            <button onClick={handleExportExcel} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 transition-colors">
+                                 <FileSpreadsheet size={16}/> Excel
+                            </button>
+                            <button onClick={handleDownloadReport} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors">
+                                 <FileText size={16}/> PDF
+                            </button>
+                            <button onClick={() => setIsHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
                          </div>
                     </div>
                     
                     <div className="flex gap-2 border-b border-slate-100 mb-4">
-                        <button 
-                            onClick={() => setActiveHistoryTab('bookings')}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeHistoryTab === 'bookings' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                        >
-                            Riwayat Sewa Unit
-                        </button>
-                        <button 
-                            onClick={() => setActiveHistoryTab('deposits')}
-                            className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeHistoryTab === 'deposits' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}
-                        >
-                            Riwayat Setoran
-                        </button>
+                        <button onClick={() => setActiveHistoryTab('bookings')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeHistoryTab === 'bookings' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Riwayat Sewa Unit</button>
+                        <button onClick={() => setActiveHistoryTab('deposits')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeHistoryTab === 'deposits' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Riwayat Setoran</button>
                     </div>
 
-                    {/* Filter Tanggal */}
                     <div className="flex items-center gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-200">
                         <Filter size={14} className="text-slate-500 ml-1" />
                         <span className="text-xs font-bold text-slate-700">Filter Tanggal:</span>
-                        <input 
-                            type="date" 
-                            className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                            value={historyStartDate} 
-                            onChange={e => setHistoryStartDate(e.target.value)} 
-                        />
+                        <input type="date" className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" value={historyStartDate} onChange={e => setHistoryStartDate(e.target.value)} />
                         <span className="text-xs text-slate-400">-</span>
-                        <input 
-                            type="date" 
-                            className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" 
-                            value={historyEndDate} 
-                            onChange={e => setHistoryEndDate(e.target.value)} 
-                        />
+                        <input type="date" className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} />
                         {(historyStartDate || historyEndDate) && (
                             <button onClick={() => {setHistoryStartDate(''); setHistoryEndDate('')}} className="text-xs text-red-500 hover:underline ml-auto mr-2">Reset</button>
                         )}
@@ -452,7 +416,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                                                     <div className="text-xs text-slate-500 mt-1">Unit: {car?.name} ({car?.plate})</div>
                                                 </div>
                                                 <div className="text-right">
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold mt-1 inline-block ${booking.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold mt-1 inline-block ${booking.status === BookingStatus.COMPLETED ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
                                                         {booking.status}
                                                     </span>
                                                 </div>
@@ -484,10 +448,7 @@ const PartnersPage: React.FC<Props> = ({ currentUser }) => {
                                                             <CheckCircle size={10}/> Sudah Dibayarkan
                                                         </span>
                                                     ) : (
-                                                        <button 
-                                                            onClick={() => handlePayTransaction(tx.id)}
-                                                            className="flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded text-[10px] hover:bg-green-700 transition-colors cursor-pointer"
-                                                        >
+                                                        <button onClick={() => handlePayTransaction(tx.id)} className="flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded text-[10px] hover:bg-green-700 transition-colors cursor-pointer">
                                                             <Wallet size={10}/> Bayar Sekarang
                                                         </button>
                                                     )}

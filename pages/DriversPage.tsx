@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { Driver, User, Booking, Car, Transaction, BookingStatus } from '../types';
 import { getStoredData, setStoredData, exportToCSV, processCSVImport, mergeData, compressImage } from '../services/dataService';
@@ -32,7 +31,6 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
   // Form State
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
-  const [dailyRate, setDailyRate] = useState(150000);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -52,13 +50,11 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
         setEditingDriver(driver);
         setName(driver.name);
         setPhone(driver.phone);
-        setDailyRate(driver.dailyRate);
         setImagePreview(driver.image);
     } else {
         setEditingDriver(null);
         setName('');
         setPhone('');
-        setDailyRate(150000);
         setImagePreview(null);
     }
     setIsModalOpen(true);
@@ -102,7 +98,7 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
         id: editingDriver ? editingDriver.id : Date.now().toString(),
         name,
         phone,
-        dailyRate: Number(dailyRate),
+        dailyRate: editingDriver ? editingDriver.dailyRate : 0, // dailyRate tetap ada di objek tapi tidak di UI
         status: 'Active',
         image: finalImage
     };
@@ -201,7 +197,7 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
       <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-800">{isDriverView ? 'Profil Saya' : 'Manajemen Driver'}</h2>
-          <p className="text-slate-500">{isDriverView ? 'Informasi profil dan statistik kinerja Anda.' : 'Kelola data supir, foto dan tarif harian.'}</p>
+          <p className="text-slate-500">{isDriverView ? 'Informasi profil dan statistik kinerja Anda.' : 'Kelola data supir, foto dan status driver.'}</p>
         </div>
         {!isDriverView && (
             <div className="flex flex-wrap gap-2">
@@ -233,13 +229,7 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
                         </div>
                     </div>
                 </div>
-                <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-4 flex justify-between items-center">
-                    <span className="text-sm text-slate-500">Tarif Harian</span>
-                    <span className="font-bold text-slate-800 flex items-center gap-1">
-                        <DollarSign size={14} className="text-green-600" />
-                        Rp {driver.dailyRate.toLocaleString('id-ID')}
-                    </span>
-                </div>
+                
                 <div className="flex flex-col gap-2">
                     <button onClick={() => openHistoryModal(driver)} className="w-full py-2 text-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium">
                         <History size={16} /> Riwayat & Detail
@@ -296,13 +286,7 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
                           <label className="block text-sm font-medium text-slate-700">Nomor Telepon</label>
                           <input required type="tel" className="w-full border rounded-lg p-2.5 mt-1" value={phone} onChange={e => setPhone(e.target.value)} />
                       </div>
-                      <div>
-                          <label className="block text-sm font-medium text-slate-700">Tarif Harian (Rp)</label>
-                          <div className="relative mt-1">
-                                <span className="absolute left-3 top-2.5 text-slate-500 text-sm">Rp</span>
-                                <input required type="number" className="w-full border rounded-lg p-2.5 pl-10" value={dailyRate} onChange={e => setDailyRate(Number(e.target.value))} />
-                          </div>
-                      </div>
+                      
                       <div className="flex gap-3 mt-6 pt-4 border-t">
                           <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium">Batal</button>
                           <button disabled={isUploading} type="submit" className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 disabled:opacity-50">

@@ -11,7 +11,7 @@ import {
   Car as CarIcon, User, Users, Briefcase, Building, Wallet 
 } from 'lucide-react';
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884d8', '#82ca9d', '#ffc658'];
+const COLORS = ['#4f46e5', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
 
 const StatisticsPage = () => {
   // Data States
@@ -93,12 +93,12 @@ const StatisticsPage = () => {
       return stats.sort((a,b) => b.revenue - a.revenue);
   }, [cars, filteredBookings]);
 
-  // 3. INVESTOR DATA
+  // 3. INVESTOR DATA (INCLUDING OFFICE)
   const investorStats = useMemo(() => {
-      return partners.map(p => {
+      const partnerList = partners.map(p => {
           const partnerCars = cars.filter(c => c.partnerId === p.id).map(c => c.id);
           const partnerBookings = filteredBookings.filter(b => partnerCars.includes(b.carId));
-          const grossRevenue = partnerBookings.reduce((sum, b) => sum + b.basePrice + (b.overtimeFee || 0) + b.highSeasonFee, 0);
+          const grossRevenue = partnerBookings.reduce((sum, b) => sum + (b.basePrice + (b.overtimeFee || 0) + b.highSeasonFee), 0);
           const estShare = grossRevenue * (p.splitPercentage / 100);
           
           return {
@@ -107,7 +107,21 @@ const StatisticsPage = () => {
               revenue: grossRevenue,
               share: estShare
           };
-      }).filter(p => p.revenue > 0); // Only show active investors
+      });
+
+      // Office Stats
+      const officeCars = cars.filter(c => !c.partnerId).map(c => c.id);
+      const officeBookings = filteredBookings.filter(b => officeCars.includes(b.carId));
+      const officeRevenue = officeBookings.reduce((sum, b) => sum + (b.basePrice + (b.overtimeFee || 0) + b.highSeasonFee), 0);
+      
+      const officeData = {
+          name: 'KANTOR (Aset Sendiri)',
+          units: officeCars.length,
+          revenue: officeRevenue,
+          share: officeRevenue // Office share is 100% of its own revenue
+      };
+
+      return [officeData, ...partnerList].filter(p => p.units > 0 || p.revenue > 0);
   }, [partners, cars, filteredBookings]);
 
   // 4. DRIVER DATA
@@ -187,10 +201,10 @@ const StatisticsPage = () => {
               break;
           case 'investor':
               dataToExport = investorStats.map(i => ({
-                  Investor: i.name,
+                  Nama: i.name,
                   Jumlah_Unit: i.units,
                   Pendapatan_Kotor: i.revenue,
-                  Bagi_Hasil: i.share
+                  Porsi_Hak: i.share
               }));
               break;
           case 'driver':
@@ -384,7 +398,7 @@ const StatisticsPage = () => {
                                               innerRadius={60}
                                               outerRadius={80}
                                               paddingAngle={5}
-                                              dataKey="share"
+                                              dataKey="revenue"
                                           >
                                               {investorStats.map((entry, index) => (
                                                   <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
@@ -397,11 +411,11 @@ const StatisticsPage = () => {
                               </div>
                           </div>
                           <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm flex flex-col justify-center">
-                              <h4 className="font-bold text-slate-700 mb-4">Total Bagi Hasil Investor</h4>
+                              <h4 className="font-bold text-slate-700 mb-4">Total Distribusi Pendapatan</h4>
                               <p className="text-3xl font-black text-indigo-600">
-                                  Rp {investorStats.reduce((acc, curr) => acc + curr.share, 0).toLocaleString('id-ID')}
+                                  Rp {investorStats.reduce((acc, curr) => acc + curr.revenue, 0).toLocaleString('id-ID')}
                               </p>
-                              <p className="text-sm text-slate-500 mt-2">Dari total {partners.length} investor aktif pada periode ini.</p>
+                              <p className="text-sm text-slate-500 mt-2">Agregasi untuk {investorStats.length} entitas (Internal + Mitra).</p>
                           </div>
                       </div>
 
@@ -409,15 +423,15 @@ const StatisticsPage = () => {
                           <table className="min-w-full divide-y divide-slate-200">
                               <thead className="bg-slate-50">
                                   <tr>
-                                      <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Nama Investor</th>
+                                      <th className="px-6 py-3 text-left text-xs font-bold text-slate-500 uppercase">Nama Entitas</th>
                                       <th className="px-6 py-3 text-center text-xs font-bold text-slate-500 uppercase">Unit</th>
                                       <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase">Pendapatan Kotor</th>
-                                      <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase text-indigo-600">Bagi Hasil</th>
+                                      <th className="px-6 py-3 text-right text-xs font-bold text-slate-500 uppercase text-indigo-600">Hak Bersih</th>
                                   </tr>
                               </thead>
                               <tbody className="divide-y divide-slate-100 bg-white">
                                   {investorStats.map((i, idx) => (
-                                      <tr key={idx} className="hover:bg-slate-50">
+                                      <tr key={idx} className={`hover:bg-slate-50 ${i.name.includes('KANTOR') ? 'bg-indigo-50/20' : ''}`}>
                                           <td className="px-6 py-3 font-medium text-slate-800 text-sm">{i.name}</td>
                                           <td className="px-6 py-3 text-center text-sm">{i.units}</td>
                                           <td className="px-6 py-3 text-right text-sm text-slate-500">Rp {i.revenue.toLocaleString('id-ID')}</td>

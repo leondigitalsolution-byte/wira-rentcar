@@ -1,4 +1,3 @@
-
 export enum BookingStatus {
   BOOKED = 'Booked',
   ACTIVE = 'Active',
@@ -76,7 +75,7 @@ export interface Partner {
   id: string;
   name: string;
   phone: string;
-  splitPercentage: number;
+  splitPercentage: number; // Keep for legacy, but UI will prefer Car.investorSetoran
   image?: string;
 }
 
@@ -92,7 +91,7 @@ export interface Driver {
   id: string;
   name: string;
   phone: string;
-  dailyRate: number;
+  dailyRate: number; // Deprecated by Car.driverSalary but kept for fallback
   status: 'Active' | 'Inactive';
   image: string;
 }
@@ -110,13 +109,16 @@ export interface Car {
   name: string;
   plate: string;
   type: string;
-  // Deprecated fixed fields, keeping optional for backward compat if needed, 
-  // but logic should prefer 'pricing'
-  price12h?: number; 
-  price24h?: number;
   
   // New: Dynamic Pricing Map (Package Name -> Price)
   pricing: { [packageName: string]: number };
+  
+  // New: Fixed Financial Schemas
+  investorSetoran: number; // Setoran fixed ke investor per hari
+  driverSalary: number;    // Gaji driver fixed untuk mobil ini per hari
+  
+  price12h?: number; 
+  price24h?: number;
   
   image: string;
   partnerId?: string | null;

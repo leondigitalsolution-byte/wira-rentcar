@@ -1,4 +1,3 @@
-
 import { 
   Search, Plus, Trash2, MessageCircle, AlertTriangle, Calendar, 
   User as UserIcon, Zap, CheckCircle, MapPin, Shield, 
@@ -148,7 +147,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   }, [selectedCustomerId, customers]);
 
   useEffect(() => {
-      if (isRentToRent) return; // Skip price auto-fill if rent-to-rent (user sets manually usually, or it defaults)
+      if (isRentToRent) return; 
       if (!selectedCarId || !packageType || editingBookingId) return;
       const car = cars.find(c => c.id === selectedCarId);
       if (car) {
@@ -168,7 +167,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         if (actual > scheduled) {
             const diffMs = actual.getTime() - scheduled.getTime();
             const overdueHours = Math.ceil(diffMs / (1000 * 60 * 60));
-            // 10% per hour penalty default
             const calculated = overdueHours * ((customBasePrice || 0) / 10);
             setOvertimeFee(calculated);
         } else {
@@ -187,7 +185,9 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
     const diffDays = Math.max(1, Math.ceil(diffHours / 24));
     setDurationDays(diffDays);
 
-    // Car Availability Check (Skip if Rent to Rent)
+    const car = cars.find(c => c.id === selectedCarId);
+
+    // Car Availability Check
     if (selectedCarId && !isRentToRent) {
       const conflict = bookings.find(b => {
           if (editingBookingId && b.id === editingBookingId) return false;
@@ -219,7 +219,10 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
     if (start < end) {
         const totalBase = (customBasePrice || 0) * diffDays;
-        let totalDriver = useDriver ? (drivers.find(d => d.id === selectedDriverId)?.dailyRate || 0) * diffDays : 0;
+        
+        // NEW LOGIC: Use car.driverSalary instead of driver.dailyRate
+        const carDriverSalary = car?.driverSalary || 0;
+        let totalDriver = useDriver ? carDriverSalary * diffDays : 0;
         
         let hsFee = 0;
         highSeasons.forEach(hs => {
@@ -228,9 +231,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
             if (start < hsEnd && end > hsStart) hsFee += hs.priceIncrease * diffDays;
         });
 
-        // Sum everything including manual/auto overdue and extra costs
         const subTotal = totalBase + totalDriver + hsFee + deliveryFee + overtimeFee + extraCost;
-        // SUBTRACT DISCOUNT
         const total = Math.max(0, subTotal - discount);
 
         setPricing({ 
@@ -275,7 +276,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       setEndDate(end.toISOString().split('T')[0]);
       setEndTime(end.toTimeString().slice(0,5));
       
-      // Handle Rent to Rent logic
       if (booking.isRentToRent) {
           setIsRentToRent(true);
           setSelectedVendorId(booking.vendorId || '');
@@ -324,14 +324,13 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       }
   };
 
-  // Triggered when clicking a timeline cell
   const handleTimelineCellClick = (carId: string, date: Date) => {
       resetForm();
       const dateStr = date.toISOString().split('T')[0];
       setSelectedCarId(carId);
       setStartDate(dateStr);
       setStartTime('08:00');
-      setEndDate(dateStr); // Default 1 day duration
+      setEndDate(dateStr); 
       setEndTime('20:00');
       setActiveTab('create');
   };
@@ -363,15 +362,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
     const newBooking: Booking = {
       id: editingBookingId || Date.now().toString(),
-      carId: selectedCarId, // Will be empty if rent-to-rent
-      
-      // Rent to Rent Fields
+      carId: selectedCarId,
       isRentToRent: isRentToRent,
       vendorId: isRentToRent ? selectedVendorId : undefined,
       externalCarName: isRentToRent ? externalCarName : undefined,
       externalCarPlate: isRentToRent ? externalCarPlate : undefined,
       vendorFee: isRentToRent ? Number(vendorFee) : undefined,
-
       driverId: useDriver ? selectedDriverId : undefined,
       driverNote: driverNote,
       customerId: selectedCustomerId || undefined,
@@ -403,11 +399,9 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       createdAt: editingBookingId ? (bookings.find(b => b.id === editingBookingId)?.createdAt || Date.now()) : Date.now()
     };
 
-    // Load current transactions to manage
     const currentTx = getStoredData<Transaction[]>('transactions', []);
     let newTransactions: Transaction[] = [...currentTx];
 
-    // 1. Handle Income Transaction (Customer Payment)
     let oldPaid = editingBookingId ? (bookings.find(b => b.id === editingBookingId)?.amountPaid || 0) : 0;
     if (paid > oldPaid) {
         newTransactions.unshift({
@@ -423,69 +417,61 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         });
     }
 
-    // 2. AUTOMATION: Generate Expense for Partner, Driver, or VENDOR
     if (newBooking.status === BookingStatus.COMPLETED && newBooking.paymentStatus === PaymentStatus.PAID) {
-        
-        // A. Setor Vendor (Jika Rent to Rent)
+        const diffMs = new Date(newBooking.endDate).getTime() - new Date(newBooking.startDate).getTime();
+        const bookingDays = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
+
+        // A. Setor Vendor
         if (newBooking.isRentToRent && newBooking.vendorId && (newBooking.vendorFee || 0) > 0) {
              const exists = newTransactions.some(t => t.bookingId === newBooking.id && t.category === 'Sewa Vendor');
              if (!exists) {
-                 const vendor = vendors.find(v => v.id === newBooking.vendorId);
                  newTransactions.unshift({
-                    id: `auto-vendor-${Date.now()}-${Math.random()}`,
+                    id: `auto-vendor-${Date.now()}`,
                     date: new Date().toISOString(),
                     amount: Number(newBooking.vendorFee),
                     type: 'Expense',
                     category: 'Sewa Vendor',
-                    description: `Bayar Vendor #${newBooking.id.slice(0,6)} - ${vendor?.name || 'Unit Luar'}`,
+                    description: `Bayar Vendor #${newBooking.id.slice(0,6)}`,
                     bookingId: newBooking.id,
-                    relatedId: newBooking.vendorId, // Optional link to vendor ID if we tracked it in Transaction.relatedId
+                    relatedId: newBooking.vendorId,
                     status: 'Pending'
                  });
              }
         }
 
-        // B. Setor Investor (Jika Mobil Milik Mitra Internal)
+        // B. NEW LOGIC: Setor Investor (Fixed per hari dari Car model)
         if (!newBooking.isRentToRent) {
             const car = cars.find(c => c.id === newBooking.carId);
-            if (car && car.partnerId) {
-                const partner = partners.find(p => p.id === car.partnerId);
-                if (partner) {
-                    const exists = newTransactions.some(t => t.bookingId === newBooking.id && t.category === 'Setor Investor');
-                    if (!exists) {
-                        const revenueBase = newBooking.basePrice + (newBooking.overtimeFee || 0) + newBooking.highSeasonFee;
-                        const splitAmount = revenueBase * (partner.splitPercentage / 100);
-                        
-                        if (splitAmount > 0) {
-                            newTransactions.unshift({
-                                id: `auto-invest-${Date.now()}-${Math.random()}`,
-                                date: new Date().toISOString(),
-                                amount: splitAmount,
-                                type: 'Expense',
-                                category: 'Setor Investor',
-                                description: `Bagi Hasil Booking #${newBooking.id.slice(0,6)} - ${car.name}`,
-                                bookingId: newBooking.id,
-                                relatedId: partner.id,
-                                status: 'Pending'
-                            });
-                        }
-                    }
+            if (car && car.partnerId && (car.investorSetoran || 0) > 0) {
+                const exists = newTransactions.some(t => t.bookingId === newBooking.id && t.category === 'Setor Investor');
+                if (!exists) {
+                    const totalSetoran = car.investorSetoran * bookingDays;
+                    newTransactions.unshift({
+                        id: `auto-invest-${Date.now()}`,
+                        date: new Date().toISOString(),
+                        amount: totalSetoran,
+                        type: 'Expense',
+                        category: 'Setor Investor',
+                        description: `Bagi Hasil #${newBooking.id.slice(0,6)} - ${car.name}`,
+                        bookingId: newBooking.id,
+                        relatedId: car.partnerId,
+                        status: 'Pending'
+                    });
                 }
             }
         }
 
-        // C. Gaji Driver (Jika Pakai Driver)
+        // C. Gaji Driver
         if (newBooking.driverId && newBooking.driverFee > 0) {
              const exists = newTransactions.some(t => t.bookingId === newBooking.id && t.category === 'Gaji');
              if (!exists) {
-                 const driver = drivers.find(d => d.id === newBooking.driverId);
                  newTransactions.unshift({
-                    id: `auto-gaji-${Date.now()}-${Math.random()}`,
+                    id: `auto-gaji-${Date.now()}`,
                     date: new Date().toISOString(),
                     amount: newBooking.driverFee,
                     type: 'Expense',
                     category: 'Gaji',
-                    description: `Gaji Trip #${newBooking.id.slice(0,6)} - ${driver?.name || 'Driver'}`,
+                    description: `Gaji Trip #${newBooking.id.slice(0,6)}`,
                     bookingId: newBooking.id,
                     relatedId: newBooking.driverId,
                     status: 'Pending'
@@ -494,12 +480,9 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         }
     }
 
-    // Save Bookings
     const updatedBookings = editingBookingId ? bookings.map(b => b.id === editingBookingId ? newBooking : b) : [newBooking, ...bookings];
     setBookings(updatedBookings);
     setStoredData('bookings', updatedBookings);
-
-    // Save Transactions
     setStoredData('transactions', newTransactions);
 
     setSuccessMessage('Booking berhasil diamankan!');
@@ -508,9 +491,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
   const resetForm = () => {
     setEditingBookingId(null); setSelectedCarId(''); setStartDate(''); setEndDate('');
-    
     setIsRentToRent(false); setSelectedVendorId(''); setExternalCarName(''); setExternalCarPlate(''); setVendorFee(0);
-
     setUseDriver(false); setSelectedDriverId(''); setDriverNote('');
     setSelectedCustomerId(''); setCustomerName(''); setCustomerPhone(''); setPackageType(settings.rentalPackages[0]);
     setDestination('Dalam Kota'); setCustomerNote(''); setCustomBasePrice(0); setDeliveryFee(0);
@@ -576,15 +557,10 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   };
 
   const handleCancelAction = (b: Booking) => {
-      if(window.confirm('Batalkan pesanan ini? Status akan berubah menjadi Canceled dan jadwal akan dilepaskan.')) {
+      if(window.confirm('Batalkan pesanan ini?')) {
           const updated = bookings.map(booking => {
               if (booking.id === b.id) {
-                  return { 
-                      ...booking, 
-                      status: BookingStatus.CANCELLED,
-                      driverId: undefined, 
-                      checklist: undefined 
-                  };
+                  return { ...booking, status: BookingStatus.CANCELLED, driverId: undefined, checklist: undefined };
               }
               return booking;
           });
@@ -593,15 +569,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       }
   };
 
-  // Timeline Helper Functions
   const getDaysInMonth = (date: Date) => {
       const year = date.getFullYear();
       const month = date.getMonth();
       const daysInMonth = new Date(year, month + 1, 0).getDate();
       const days = [];
-      for (let i = 1; i <= daysInMonth; i++) {
-          days.push(new Date(year, month, i));
-      }
+      for (let i = 1; i <= daysInMonth; i++) { days.push(new Date(year, month, i)); }
       return days;
   };
 
@@ -610,19 +583,15 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       const month = timelineDate.getMonth();
       const firstDayOfMonth = new Date(year, month, 1);
       const lastDayOfMonth = new Date(year, month + 1, 0);
-
       return bookings.filter(b => {
           if (b.carId !== carId || b.status === BookingStatus.CANCELLED) return false;
           const start = new Date(b.startDate);
           const end = new Date(b.endDate);
-          // Check overlapping
           return start <= lastDayOfMonth && end >= firstDayOfMonth;
       });
   };
 
   const selectedCarData = cars.find(c => c.id === selectedCarId);
-
-  // Get upcoming bookings for selected car to show schedule
   const carUpcomingBookings = selectedCarId 
       ? bookings.filter(b => b.carId === selectedCarId && b.status !== BookingStatus.CANCELLED && new Date(b.endDate) >= new Date())
                 .sort((a,b) => new Date(a.startDate).getTime() - new Date(b.startDate).getTime())
@@ -630,14 +599,9 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       : [];
 
   const statusPriority: Record<string, number> = {
-      [BookingStatus.ACTIVE]: 1,
-      [BookingStatus.BOOKED]: 2,
-      [BookingStatus.COMPLETED]: 3,
-      [BookingStatus.CANCELLED]: 4,
-      [BookingStatus.MAINTENANCE]: 5
+      [BookingStatus.ACTIVE]: 1, [BookingStatus.BOOKED]: 2, [BookingStatus.COMPLETED]: 3, [BookingStatus.CANCELLED]: 4, [BookingStatus.MAINTENANCE]: 5
   };
 
-  // Filter Cars for Timeline based on Search
   const filteredTimelineCars = cars.filter(c => 
       c.name.toLowerCase().includes(timelineSearch.toLowerCase()) || 
       c.plate.toLowerCase().includes(timelineSearch.toLowerCase())
@@ -648,7 +612,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-800">Booking & Jadwal</h2>
-          <p className="text-slate-500 font-medium">Sistem anti-bentrok jadwal otomatis 24/7.</p>
+          <p className="text-slate-500 font-medium">Sistem manajemen ketersediaan armada terintegrasi.</p>
         </div>
         <div className="flex bg-white p-1 rounded-xl border border-slate-200 shadow-sm overflow-x-auto">
            <button onClick={() => setActiveTab('list')} className={`px-4 py-2.5 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 hover:bg-slate-50'}`}>
@@ -669,116 +633,62 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         </div>
       )}
 
-      {/* TIMELINE VIEW (Unchanged - Note: External cars won't appear here as they aren't in car DB) */}
       {activeTab === 'timeline' && (
           <div className="bg-white border border-slate-200 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)]">
-              {/* Timeline Header & Controls (Same as before) */}
               <div className="p-4 border-b border-slate-200 flex flex-col sm:flex-row justify-between items-center bg-slate-50 gap-4 flex-shrink-0">
                   <div className="flex items-center gap-2">
                       <button onClick={() => setTimelineDate(new Date(timelineDate.setMonth(timelineDate.getMonth() - 1)))} className="p-2 bg-white border rounded-lg hover:bg-slate-50"><ChevronLeft size={16}/></button>
                       <h3 className="font-bold text-slate-800 w-40 text-center">{timelineDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</h3>
                       <button onClick={() => setTimelineDate(new Date(timelineDate.setMonth(timelineDate.getMonth() + 1)))} className="p-2 bg-white border rounded-lg hover:bg-slate-50"><ChevronRight size={16}/></button>
                   </div>
-                  
-                  {/* Search Filter for Timeline */}
                   <div className="relative w-full sm:w-64">
                       <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input 
-                          type="text" 
-                          placeholder="Cari Unit (Nama/Plat)..." 
-                          className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none"
-                          value={timelineSearch}
-                          onChange={e => setTimelineSearch(e.target.value)}
-                      />
+                      <input type="text" placeholder="Cari Unit..." className="w-full pl-9 pr-3 py-2 border rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none" value={timelineSearch} onChange={e => setTimelineSearch(e.target.value)} />
                   </div>
-
                   <div className="flex items-center gap-3 text-xs font-medium">
                       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-500"></span> Booked</span>
                       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-500"></span> Active</span>
                       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-400"></span> Selesai</span>
                   </div>
               </div>
-              
-              {/* Scrollable Container */}
               <div className="overflow-auto relative custom-scrollbar flex-1">
                   <div className="min-w-[1000px] inline-block w-full">
-                      {/* Calendar Header (Sticky Top) */}
                       <div className="flex border-b border-slate-200 bg-slate-50 sticky top-0 z-20 shadow-sm">
-                          <div className="w-48 p-3 font-bold text-xs text-slate-500 uppercase flex-shrink-0 sticky left-0 top-0 bg-slate-50 z-30 border-r border-slate-200 flex items-center">
-                              Unit Armada
-                          </div>
-                          
+                          <div className="w-48 p-3 font-bold text-xs text-slate-500 uppercase flex-shrink-0 sticky left-0 top-0 bg-slate-50 z-30 border-r border-slate-200 flex items-center">Unit Armada</div>
                           <div className="flex flex-1">
                               {getDaysInMonth(timelineDate).map(d => (
-                                  <div key={d.getDate()} className={`flex-1 min-w-[30px] text-center border-r border-slate-100 py-2 text-xs font-medium ${d.getDay() === 0 ? 'bg-red-50 text-red-600' : ''}`}>
-                                      {d.getDate()}
-                                  </div>
+                                  <div key={d.getDate()} className={`flex-1 min-w-[30px] text-center border-r border-slate-100 py-2 text-xs font-medium ${d.getDay() === 0 ? 'bg-red-50 text-red-600' : ''}`}>{d.getDate()}</div>
                               ))}
                           </div>
                       </div>
-
-                      {/* Timeline Rows */}
                       {filteredTimelineCars.map(car => (
                           <div key={car.id} className="flex border-b border-slate-100 hover:bg-slate-50/50 relative h-16 group">
                               <div className="w-48 p-3 flex items-center gap-3 border-r border-slate-200 bg-white flex-shrink-0 sticky left-0 z-10 group-hover:bg-slate-50 transition-colors">
-                                  {car.image ? (
-                                      <img src={car.image} className="w-10 h-10 rounded-lg object-cover" />
-                                  ) : (
-                                      <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"><CarIcon size={16} className="text-slate-400"/></div>
-                                  )}
-                                  <div>
-                                      <p className="text-xs font-bold text-slate-800 truncate w-24">{car.name}</p>
-                                      <p className="text-[10px] text-slate-500">{car.plate}</p>
-                                  </div>
+                                  {car.image ? <img src={car.image} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 bg-slate-100 rounded-lg flex items-center justify-center"><CarIcon size={16} className="text-slate-400"/></div>}
+                                  <div><p className="text-xs font-bold text-slate-800 truncate w-24">{car.name}</p><p className="text-[10px] text-slate-500">{car.plate}</p></div>
                               </div>
-                              
                               <div className="flex flex-1 relative">
                                   {getDaysInMonth(timelineDate).map(d => (
-                                      <div 
-                                          key={d.getDate()} 
-                                          className={`flex-1 min-w-[30px] border-r border-slate-100 h-full ${d.getDay() === 0 ? 'bg-red-50/30' : ''} hover:bg-indigo-50 cursor-pointer transition-colors`}
-                                          onClick={() => handleTimelineCellClick(car.id, d)}
-                                          title={`Buat booking untuk ${car.name} tanggal ${d.getDate()}`}
-                                      ></div>
+                                      <div key={d.getDate()} className={`flex-1 min-w-[30px] border-r border-slate-100 h-full ${d.getDay() === 0 ? 'bg-red-50/30' : ''} hover:bg-indigo-50 cursor-pointer transition-colors`} onClick={() => handleTimelineCellClick(car.id, d)}></div>
                                   ))}
-
                                   {getTimelineBookings(car.id).map(b => {
                                       const daysInMonth = new Date(timelineDate.getFullYear(), timelineDate.getMonth() + 1, 0).getDate();
                                       const start = new Date(b.startDate);
                                       const end = new Date(b.endDate);
-                                      
                                       const monthStart = new Date(timelineDate.getFullYear(), timelineDate.getMonth(), 1);
-                                      
                                       let startDay = start.getDate();
                                       let duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                                      
                                       if (start < monthStart) {
                                           const offset = Math.ceil((monthStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                                          duration -= offset;
-                                          startDay = 1;
+                                          duration -= offset; startDay = 1;
                                       }
-
-                                      if (startDay + duration > daysInMonth + 1) {
-                                          duration = (daysInMonth + 1) - startDay;
-                                      }
-
+                                      if (startDay + duration > daysInMonth + 1) duration = (daysInMonth + 1) - startDay;
                                       if (duration <= 0) return null;
-
                                       const leftPos = ((startDay - 1) / daysInMonth) * 100;
                                       const width = (duration / daysInMonth) * 100;
-
                                       const colorClass = b.status === 'Active' ? 'bg-green-500' : b.status === 'Completed' ? 'bg-slate-400' : 'bg-blue-500';
-
                                       return (
-                                          <div 
-                                              key={b.id}
-                                              className={`absolute top-3 bottom-3 rounded-md shadow-sm text-[10px] text-white flex items-center justify-center font-bold px-1 overflow-hidden whitespace-nowrap cursor-pointer z-0 hover:z-20 hover:scale-105 transition-transform ${colorClass}`}
-                                              style={{ left: `${leftPos}%`, width: `${width}%` }}
-                                              onClick={(e) => { e.stopPropagation(); handleEdit(b); }}
-                                              title={`${b.customerName} (${new Date(b.startDate).toLocaleDateString('id-ID')} - ${new Date(b.endDate).toLocaleDateString('id-ID')})`}
-                                          >
-                                              {b.customerName}
-                                          </div>
+                                          <div key={b.id} className={`absolute top-3 bottom-3 rounded-md shadow-sm text-[10px] text-white flex items-center justify-center font-bold px-1 overflow-hidden whitespace-nowrap cursor-pointer z-0 hover:z-20 hover:scale-105 transition-transform ${colorClass}`} style={{ left: `${leftPos}%`, width: `${width}%` }} onClick={(e) => { e.stopPropagation(); handleEdit(b); }}>{b.customerName}</div>
                                       );
                                   })}
                               </div>
@@ -792,7 +702,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       {activeTab === 'create' && (
         <div className="bg-white rounded-2xl border border-slate-200 shadow-xl overflow-visible">
              <form onSubmit={handleCreateBooking} className="grid grid-cols-1 lg:grid-cols-[1.2fr_2fr] min-h-[600px]">
-                
                 <div className="bg-slate-50/50 p-6 border-r border-slate-100 space-y-6">
                     <section className="space-y-4">
                         <h4 className="font-black text-slate-800 flex items-center gap-2 border-b pb-3 uppercase tracking-widest text-[10px]"><ClockIcon size={16} className="text-indigo-600"/> Waktu & Unit</h4>
@@ -813,18 +722,17 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                             </div>
                         </div>
 
-                        {/* RENT TO RENT TOGGLE */}
                         <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3">
                             <label className="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox" className="w-5 h-5 text-yellow-600 rounded-md border-slate-300" checked={isRentToRent} onChange={e => setIsRentToRent(e.target.checked)} />
-                                <span className="text-sm font-bold text-slate-700 flex items-center gap-2"><Building size={16}/> Rent to Rent / Unit Luar</span>
+                                <span className="text-sm font-bold text-slate-700 flex items-center gap-2"><Building size={16}/> Unit Luar (Vendor)</span>
                             </label>
                         </div>
 
                         {isRentToRent ? (
                             <div className="space-y-3 animate-fade-in">
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase">Pilih Vendor</label>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Vendor</label>
                                     <select required className="w-full border rounded-lg p-2.5 text-sm font-bold bg-white" value={selectedVendorId} onChange={e => setSelectedVendorId(e.target.value)}>
                                         <option value="">-- Pilih Vendor --</option>
                                         {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
@@ -832,28 +740,27 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase">Nama Mobil (External)</label>
-                                    <input required type="text" className="w-full border rounded-lg p-2.5 text-sm font-bold" placeholder="Contoh: Innova Zenix" value={externalCarName} onChange={e => setExternalCarName(e.target.value)} />
+                                    <input required type="text" className="w-full border rounded-lg p-2.5 text-sm font-bold" value={externalCarName} onChange={e => setExternalCarName(e.target.value)} />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase">Plat Nomor</label>
-                                    <input required type="text" className="w-full border rounded-lg p-2.5 text-sm font-bold font-mono uppercase" placeholder="B 1234 XX" value={externalCarPlate} onChange={e => setExternalCarPlate(e.target.value)} />
+                                    <input required type="text" className="w-full border rounded-lg p-2.5 text-sm font-bold uppercase" value={externalCarPlate} onChange={e => setExternalCarPlate(e.target.value)} />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-red-500 uppercase flex items-center gap-1"><DollarSign size={10}/> Biaya Sewa ke Vendor (HPP)</label>
-                                    <input required type="number" className="w-full border rounded-lg p-2.5 text-sm font-bold border-red-200 bg-red-50" placeholder="0" value={vendorFee} onChange={e => setVendorFee(Number(e.target.value))} />
-                                    <p className="text-[9px] text-slate-400">*Akan dicatat sebagai pengeluaran</p>
+                                    <label className="text-[10px] font-black text-red-500 uppercase">HPP Vendor (Rp)</label>
+                                    <input required type="number" className="w-full border rounded-lg p-2.5 text-sm font-bold border-red-200 bg-red-50" value={vendorFee} onChange={e => setVendorFee(Number(e.target.value))} />
                                 </div>
                             </div>
                         ) : (
                             <div className="relative" ref={dropdownRef}>
-                                <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Pilih Mobil</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Unit Armada</label>
                                 <div onClick={() => setIsCarDropdownOpen(!isCarDropdownOpen)} className={`w-full border rounded-xl p-3 cursor-pointer flex items-center justify-between transition-all ${carError ? 'border-red-500 bg-red-50 ring-2 ring-red-100' : 'bg-white hover:border-indigo-400 shadow-sm'}`}>
                                     {selectedCarData ? (
                                         <div className="flex items-center gap-3">
                                             <img src={selectedCarData.image} className="w-10 h-7 object-cover rounded shadow-sm" />
                                             <div><p className="font-bold text-xs">{selectedCarData.name}</p><p className="text-[9px] text-slate-500 font-mono">{selectedCarData.plate}</p></div>
                                         </div>
-                                    ) : <span className="text-xs text-slate-400">Pilih unit armada...</span>}
+                                    ) : <span className="text-xs text-slate-400">Pilih unit...</span>}
                                     <ChevronDown size={18} className="text-slate-400"/>
                                 </div>
                                 {isCarDropdownOpen && (
@@ -870,37 +777,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                         })}
                                     </div>
                                 )}
-                                {/* CONFLICT ALERT WITH DETAILS */}
                                 {carError && conflictingBooking && (
                                     <div className="mt-3 bg-red-50 border border-red-200 rounded-lg p-3">
                                         <p className="text-red-700 text-[10px] font-bold flex items-center gap-1 mb-1"><AlertTriangle size={12}/> JADWAL BENTROK!</p>
-                                        <div className="text-[10px] text-slate-600">
-                                            <p>Dipakai oleh: <span className="font-bold">{conflictingBooking.customerName}</span></p>
-                                            <p>{new Date(conflictingBooking.startDate).toLocaleString('id-ID')} s/d</p>
-                                            <p>{new Date(conflictingBooking.endDate).toLocaleString('id-ID')}</p>
-                                        </div>
+                                        <div className="text-[10px] text-slate-600"><p>Oleh: <span className="font-bold">{conflictingBooking.customerName}</span></p></div>
                                     </div>
                                 )}
-                            </div>
-                        )}
-
-                        {/* SCHEDULE PREVIEW FOR SELECTED CAR */}
-                        {selectedCarId && !isRentToRent && !carError && carUpcomingBookings.length > 0 && (
-                            <div className="mt-2 bg-indigo-50/50 border border-indigo-100 rounded-lg p-3">
-                                <p className="text-indigo-700 text-[10px] font-bold flex items-center gap-1 mb-2"><Calendar size={12}/> Booking Berikutnya:</p>
-                                <div className="space-y-2">
-                                    {carUpcomingBookings.map(b => (
-                                        <div key={b.id} className="text-[10px] bg-white p-2 rounded border border-indigo-100 shadow-sm">
-                                            <div className="flex justify-between font-bold text-slate-700">
-                                                <span>{new Date(b.startDate).toLocaleDateString('id-ID')}</span>
-                                                <span className="text-indigo-600">{b.status}</span>
-                                            </div>
-                                            <div className="text-slate-500 text-[9px] mt-0.5">
-                                                {new Date(b.startDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})} - {new Date(b.endDate).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
                             </div>
                         )}
                     </section>
@@ -909,7 +791,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         <div className="bg-white p-4 rounded-xl border border-slate-100 shadow-sm space-y-4">
                              <label className="flex items-center gap-3 cursor-pointer">
                                 <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded-md border-slate-300" checked={useDriver} onChange={e => setUseDriver(e.target.checked)} />
-                                <span className="text-sm font-bold text-slate-700">Pakai Jasa Driver?</span>
+                                <span className="text-sm font-bold text-slate-700">Pakai Jasa Driver</span>
                              </label>
                              {useDriver && (
                                 <div className="space-y-3 animate-fade-in">
@@ -917,10 +799,11 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                         <option value="">-- Pilih Driver --</option>
                                         {drivers.map(d => {
                                              const isAvail = (!startDate || !endDate) ? true : checkAvailability(bookings, d.id, new Date(`${startDate}T${startTime}`), new Date(`${endDate}T${endTime}`), 'driver', editingBookingId || undefined);
-                                             return <option key={d.id} value={d.id} disabled={!isAvail}>{d.name} {!isAvail ? '(Bertugas)' : `(Rp ${d.dailyRate.toLocaleString()}/hari)`}</option>
+                                             const carSalary = selectedCarData?.driverSalary || 0;
+                                             return <option key={d.id} value={d.id} disabled={!isAvail}>{d.name} {!isAvail ? '(Sibuk)' : `(Gaji: Rp ${carSalary.toLocaleString()}/hr)`}</option>
                                         })}
                                     </select>
-                                    <textarea className="w-full border rounded-lg p-3 text-xs" rows={2} placeholder="Keterangan untuk Driver" value={driverNote} onChange={e => setDriverNote(e.target.value)} />
+                                    <textarea className="w-full border rounded-lg p-3 text-xs" rows={2} placeholder="Catatan driver..." value={driverNote} onChange={e => setDriverNote(e.target.value)} />
                                 </div>
                              )}
                         </div>
@@ -931,19 +814,19 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         <h4 className="font-black text-slate-800 flex items-center gap-2 border-b pb-3 uppercase tracking-widest text-xs"><UserIcon size={18} className="text-indigo-600"/> 1. Data Pelanggan</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Cari Pelanggan</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase">Database Pelanggan</label>
                                 <select className="w-full border rounded-xl p-2.5 text-sm bg-slate-50 font-bold" value={selectedCustomerId} onChange={e => setSelectedCustomerId(e.target.value)}>
                                     <option value="">-- Pelanggan Baru --</option>
-                                    {customers.map(c => <option key={c.id} value={c.id}>{c.name} ({c.phone})</option>)}
+                                    {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                                 </select>
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase">Nama Lengkap</label>
-                                <input required type="text" className="w-full border rounded-xl p-2.5 text-sm font-bold" value={customerName} onChange={e => setCustomerName(e.target.value)} placeholder="Nama Sesuai KTP" />
+                                <input required type="text" className="w-full border rounded-xl p-2.5 text-sm font-bold" value={customerName} onChange={e => setCustomerName(e.target.value)} />
                             </div>
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Nomor WhatsApp</label>
-                                <input required type="tel" className="w-full border rounded-xl p-2.5 text-sm font-bold" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} placeholder="08xxxxxxxx" />
+                                <label className="text-[10px] font-black text-slate-400 uppercase">WA Pelanggan</label>
+                                <input required type="tel" className="w-full border rounded-xl p-2.5 text-sm font-bold" value={customerPhone} onChange={e => setCustomerPhone(e.target.value)} />
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase">Paket Sewa</label>
@@ -951,55 +834,35 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                     {settings.rentalPackages.map((p: string) => <option key={p} value={p}>{p}</option>)}
                                 </select>
                             </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Tujuan Perjalanan</label>
-                                <select className="w-full border rounded-xl p-2.5 text-sm font-bold" value={destination} onChange={e => setDestination(e.target.value as any)}>
-                                    <option value="Dalam Kota">Dalam Kota</option>
-                                    <option value="Luar Kota">Luar Kota</option>
-                                </select>
-                            </div>
-                            <div className="md:col-span-2 space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Keterangan Catatan Nota</label>
-                                <textarea className="w-full border rounded-xl p-3 text-sm font-medium" rows={2} value={customerNote} onChange={e => setCustomerNote(e.target.value)} placeholder="Catatan di nota..." />
-                            </div>
                         </div>
                     </section>
                     <section className="space-y-5">
-                        <h4 className="font-black text-slate-800 flex items-center gap-2 border-b pb-3 uppercase tracking-widest text-xs"><Zap size={18} className="text-indigo-600"/> 2. Summary & Biaya</h4>
+                        <h4 className="font-black text-slate-800 flex items-center gap-2 border-b pb-3 uppercase tracking-widest text-xs"><Zap size={18} className="text-indigo-600"/> 2. Rincian & Biaya</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                             <div className="space-y-4">
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase">Harga Unit / Hari (Jual)</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-2.5 text-xs font-black text-slate-400">Rp</span>
-                                        <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-black text-indigo-700 bg-indigo-50/30" value={customBasePrice} onChange={e => setCustomBasePrice(Number(e.target.value))} />
-                                    </div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Harga Unit / Hari</label>
+                                    <input type="number" className="w-full border rounded-xl p-2.5 text-sm font-black text-indigo-700 bg-indigo-50/30" value={customBasePrice} onChange={e => setCustomBasePrice(Number(e.target.value))} />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase">Biaya Antar / Jemput</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-2.5 text-xs font-black text-slate-400">Rp</span>
-                                        <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-bold" value={deliveryFee} onChange={e => setDeliveryFee(Number(e.target.value))} />
-                                    </div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Biaya Antar</label>
+                                    <input type="number" className="w-full border rounded-xl p-2.5 text-sm font-bold" value={deliveryFee} onChange={e => setDeliveryFee(Number(e.target.value))} />
                                 </div>
                                 <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase">Potongan / Diskon</label>
-                                    <div className="relative">
-                                        <span className="absolute left-3 top-2.5 text-xs font-black text-slate-400">Rp</span>
-                                        <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-bold text-green-600 bg-green-50 focus:ring-2 ring-green-200 outline-none" value={discount} onChange={e => setDiscount(Number(e.target.value))} />
-                                    </div>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Diskon</label>
+                                    <input type="number" className="w-full border rounded-xl p-2.5 text-sm font-bold text-green-600 bg-green-50" value={discount} onChange={e => setDiscount(Number(e.target.value))} />
                                 </div>
                             </div>
-                            <div className="bg-slate-900 rounded-2xl p-6 text-white space-y-3 shadow-2xl relative overflow-hidden">
-                                <h5 className="font-black text-[10px] uppercase tracking-widest text-indigo-400">Rincian Estimasi</h5>
+                            <div className="bg-slate-900 rounded-2xl p-6 text-white space-y-3 shadow-2xl">
+                                <h5 className="font-black text-[10px] uppercase tracking-widest text-indigo-400">Ringkasan Biaya</h5>
                                 <div className="space-y-1 text-xs font-medium border-b border-white/10 pb-3">
                                     <div className="flex justify-between text-slate-400"><span>Sewa Unit ({durationDays} hr)</span><span>Rp {pricing.basePrice.toLocaleString()}</span></div>
                                     {pricing.driverFee > 0 && <div className="flex justify-between text-slate-400"><span>Driver ({durationDays} hr)</span><span>Rp {pricing.driverFee.toLocaleString()}</span></div>}
                                     {pricing.highSeasonFee > 0 && <div className="flex justify-between text-orange-400"><span>High Season</span><span>Rp {pricing.highSeasonFee.toLocaleString()}</span></div>}
                                     {pricing.deliveryFee > 0 && <div className="flex justify-between text-slate-400"><span>Antar/Jemput</span><span>Rp {pricing.deliveryFee.toLocaleString()}</span></div>}
-                                    {overtimeFee > 0 && <div className="flex justify-between text-red-400"><span>Overdue (Denda)</span><span>Rp {overtimeFee.toLocaleString()}</span></div>}
+                                    {overtimeFee > 0 && <div className="flex justify-between text-red-400"><span>Overtime</span><span>Rp {overtimeFee.toLocaleString()}</span></div>}
                                     {extraCost > 0 && <div className="flex justify-between text-orange-300"><span>Biaya Extra</span><span>Rp {extraCost.toLocaleString()}</span></div>}
-                                    {discount > 0 && <div className="flex justify-between text-green-400 font-bold"><span>Diskon</span><span>- Rp {discount.toLocaleString()}</span></div>}
+                                    {discount > 0 && <div className="flex justify-between text-green-400"><span>Diskon</span><span>- Rp {discount.toLocaleString()}</span></div>}
                                 </div>
                                 <div className="flex justify-between font-black text-lg text-indigo-300"><span>TOTAL</span><span>Rp {pricing.totalPrice.toLocaleString()}</span></div>
                             </div>
@@ -1009,53 +872,23 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         <h4 className="font-black text-slate-800 flex items-center gap-2 border-b pb-3 uppercase tracking-widest text-xs"><Wallet size={18} className="text-indigo-600"/> 3. Pembayaran</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                             <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Jumlah Dibayarkan</label>
+                                <label className="text-[10px] font-black text-slate-400 uppercase">DP / Pelunasan (Masuk)</label>
                                 <div className="relative">
                                     <span className="absolute left-4 top-4 text-lg font-black text-green-700/50">Rp</span>
                                     <input type="number" className="w-full border-2 border-green-500 bg-green-50 rounded-2xl p-5 pl-12 text-2xl font-black text-green-700 outline-none" value={amountPaid} onChange={e => setAmountPaid(e.target.value)} />
                                 </div>
                             </div>
                             <div className="bg-slate-50 p-5 rounded-2xl border border-slate-100 text-center">
-                                <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Status Pembayaran</p>
+                                <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Status Nota</p>
                                 <span className={`text-xl font-black uppercase tracking-tighter px-6 py-2 rounded-full shadow-sm ${parseInt(amountPaid) >= pricing.totalPrice && pricing.totalPrice > 0 ? 'bg-green-600 text-white' : parseInt(amountPaid) > 0 ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-500'}`}>
-                                    {parseInt(amountPaid) >= pricing.totalPrice && pricing.totalPrice > 0 ? 'LUNAS' : parseInt(amountPaid) > 0 ? 'D P' : 'Belum Lunas'}
+                                    {parseInt(amountPaid) >= pricing.totalPrice && pricing.totalPrice > 0 ? 'LUNAS' : parseInt(amountPaid) > 0 ? 'D P' : 'BELUM BAYAR'}
                                 </span>
                             </div>
                         </div>
                     </section>
-                    <section className="space-y-5 bg-red-50/30 p-6 rounded-2xl border border-red-100">
-                        <h4 className="font-black text-slate-800 flex items-center gap-2 border-b border-red-200 pb-3 uppercase tracking-widest text-xs"><History size={18} className="text-red-600"/> 4. Pengembalian Unit</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Tgl & Jam Kembali (Aktual)</label>
-                                <div className="flex gap-2">
-                                    <input type="date" className="w-full border rounded-xl p-2.5 text-sm font-bold bg-white" value={actualReturnDate} onChange={e => setActualReturnDate(e.target.value)} />
-                                    <input type="time" className="w-24 border rounded-xl p-2.5 text-sm font-bold bg-white" value={actualReturnTime} onChange={e => setActualReturnTime(e.target.value)} />
-                                </div>
-                            </div>
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Biaya Overdue (Auto/Manual)</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-2.5 text-xs font-black text-slate-400">Rp</span>
-                                    <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-black bg-white focus:ring-2 ring-indigo-200 outline-none" value={overtimeFee} onChange={e => setOvertimeFee(Number(e.target.value))} />
-                                </div>
-                            </div>
-                            <div className="md:col-span-2 space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Nominal Biaya Extra</label>
-                                <div className="relative">
-                                    <span className="absolute left-3 top-2.5 text-xs font-black text-slate-400">Rp</span>
-                                    <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-bold bg-white focus:ring-2 ring-indigo-200 outline-none" value={extraCost} onChange={e => setExtraCost(Number(e.target.value))} />
-                                </div>
-                            </div>
-                            <div className="md:col-span-2 space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Keterangan Biaya Extra</label>
-                                <textarea className="w-full border rounded-xl p-3 text-sm font-medium bg-white" rows={2} value={extraCostDescription} onChange={e => setExtraCostDescription(e.target.value)} placeholder="Contoh: Unit kotor berlebih (cuci salon), bensin kurang 1 bar, baret ringan, dll" />
-                            </div>
-                        </div>
-                    </section>
                     <div className="pt-6 border-t">
-                        <button type="submit" disabled={!isRentToRent && (!!carError || !selectedCarId)} className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest hover:bg-indigo-700 shadow-2xl active:scale-95 flex items-center justify-center gap-3">
-                            <Plus size={24}/> Simpan Transaksi & Jadwal
+                        <button type="submit" disabled={!isRentToRent && (!!carError || !selectedCarId)} className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest hover:bg-indigo-700 shadow-2xl active:scale-95 flex items-center justify-center gap-3 transition-all">
+                            <Plus size={24}/> Simpan & Kunci Jadwal
                         </button>
                     </div>
                 </div>
@@ -1066,10 +899,10 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       {activeTab === 'list' && (
         <div className="space-y-4">
             <div className="p-5 bg-white border border-slate-200 rounded-2xl flex flex-wrap gap-4 items-center shadow-sm">
-                <span className="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-tighter"><Filter size={18} className="text-indigo-600"/> Filter Data:</span>
-                <input type="date" className="border rounded-xl px-4 py-2 text-sm font-bold text-slate-600 bg-slate-50 focus:ring-2 ring-indigo-100 outline-none" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
-                <span className="text-slate-400 font-bold">sampai</span>
-                <input type="date" className="border rounded-xl px-4 py-2 text-sm font-bold text-slate-600 bg-slate-50 focus:ring-2 ring-indigo-100 outline-none" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
+                <span className="text-sm font-black text-slate-700 flex items-center gap-2 uppercase tracking-tighter"><Filter size={18} className="text-indigo-600"/> Filter:</span>
+                <input type="date" className="border rounded-xl px-4 py-2 text-sm font-bold text-slate-600 bg-slate-50 outline-none" value={filterStartDate} onChange={e => setFilterStartDate(e.target.value)} />
+                <span className="text-slate-400 font-bold">-</span>
+                <input type="date" className="border rounded-xl px-4 py-2 text-sm font-bold text-slate-600 bg-slate-50 outline-none" value={filterEndDate} onChange={e => setFilterEndDate(e.target.value)} />
                 <select className="border rounded-xl px-4 py-2 text-sm font-bold text-slate-600 bg-slate-50 outline-none" value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
                     <option value="All">SEMUA STATUS</option>
                     <option value="Active">ACTIVE</option>
@@ -1086,107 +919,46 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                     const matchesDate = bDate >= start && bDate <= end;
                     const matchesStatus = filterStatus === 'All' || b.status === filterStatus;
                     return matchesDate && matchesStatus;
-                }).sort((a, b) => {
-                    const priorityA = statusPriority[a.status] || 99;
-                    const priorityB = statusPriority[b.status] || 99;
-                    if (priorityA !== priorityB) return priorityA - priorityB;
-                    return b.createdAt - a.createdAt;
-                }).map(b => {
-                    // Logic to display Rent to Rent car details if internal car not found
-                    let carName = 'Unknown Car';
-                    let carPlate = '-';
-                    let carImage = null;
-
-                    if (b.isRentToRent) {
-                        carName = b.externalCarName || 'Unit Luar';
-                        carPlate = b.externalCarPlate || '-';
-                    } else {
-                        const car = cars.find(c => c.id === b.carId);
-                        carName = car?.name || 'Unknown Car';
-                        carPlate = car?.plate || '-';
-                        carImage = car?.image;
-                    }
-
+                }).sort((a, b) => (statusPriority[a.status] || 99) - (statusPriority[b.status] || 99) || b.createdAt - a.createdAt).map(b => {
+                    let carName = b.isRentToRent ? b.externalCarName : cars.find(c => c.id === b.carId)?.name || 'Unknown';
+                    let carPlate = b.isRentToRent ? b.externalCarPlate : cars.find(c => c.id === b.carId)?.plate || '-';
+                    let carImage = b.isRentToRent ? null : cars.find(c => c.id === b.carId)?.image;
                     const isDue = b.totalPrice > b.amountPaid;
                     const diffDays = Math.max(1, Math.ceil((new Date(b.endDate).getTime() - new Date(b.startDate).getTime()) / (1000 * 60 * 60 * 24)));
-
-                    const getStatusColorClass = (status: BookingStatus) => {
-                        switch(status) {
-                            case BookingStatus.BOOKED: return 'bg-orange-500 text-white';
-                            case BookingStatus.ACTIVE: return 'bg-green-600 text-white';
-                            case BookingStatus.COMPLETED: return 'bg-blue-600 text-white';
-                            case BookingStatus.CANCELLED: return 'bg-slate-400 text-white';
-                            default: return 'bg-slate-200 text-slate-500';
-                        }
-                    };
-
                     return (
-                        <div key={b.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col justify-between gap-6 relative overflow-hidden">
+                        <div key={b.id} className="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm hover:shadow-md transition-all flex flex-col gap-6 relative overflow-hidden">
                             <div className="flex flex-col md:flex-row justify-between items-center gap-6 w-full">
                                 <div className="flex items-center gap-5 w-full">
-                                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-200 relative">
-                                        {carImage ? (
-                                            <img src={carImage} className="w-full h-full object-cover" alt={carName} />
-                                        ) : (
-                                            <CarIcon size={32} className="text-slate-400"/>
-                                        )}
-                                        {b.isRentToRent && (
-                                            <div className="absolute inset-0 bg-black/50 flex items-center justify-center">
-                                                <Building className="text-white w-6 h-6" />
-                                            </div>
-                                        )}
+                                    <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center flex-shrink-0 overflow-hidden border border-slate-200">
+                                        {carImage ? <img src={carImage} className="w-full h-full object-cover" /> : <CarIcon size={32} className="text-slate-400"/>}
                                     </div>
                                     <div className="flex-1 space-y-1">
                                         <div className="flex items-center gap-3">
                                             <h4 className="font-black text-slate-800 text-lg uppercase tracking-tight">{carName} <span className="text-xs bg-slate-100 px-2 py-0.5 rounded text-[10px] font-black border border-slate-200 ml-2">{carPlate}</span></h4>
-                                            {b.isRentToRent && <span className="bg-yellow-100 text-yellow-700 text-[9px] font-bold px-2 py-0.5 rounded border border-yellow-200">VENDOR</span>}
+                                            {b.isRentToRent && <span className="bg-yellow-100 text-yellow-700 text-[9px] font-bold px-2 py-0.5 rounded border border-yellow-200 uppercase">Unit Vendor</span>}
                                         </div>
                                         <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500">
                                             <span className="flex items-center gap-1.5"><Calendar size={14} className="text-indigo-600"/> {new Date(b.startDate).toLocaleDateString('id-ID')}</span>
-                                            <span className="flex items-center gap-1.5 text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-md"><ClockIcon size={14}/> {diffDays} HARI</span>
+                                            <span className="flex items-center gap-1.5 text-orange-600 bg-orange-50 px-1.5 py-0.5 rounded-md"><ClockIcon size={14}/> {diffDays} HR</span>
                                             <span className="flex items-center gap-1.5 text-red-600 uppercase"><UserIcon size={14}/> {b.customerName}</span>
                                             <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${isDue ? 'bg-red-50 text-red-700' : 'bg-green-50 text-green-700'}`}>
-                                                <Wallet size={14}/> Rp {b.totalPrice.toLocaleString()} {isDue && b.status !== BookingStatus.CANCELLED && <span className="text-[10px] opacity-70">(Sisa: {(b.totalPrice-b.amountPaid).toLocaleString()})</span>}
+                                                <Wallet size={14}/> Rp {b.totalPrice.toLocaleString()}
                                             </span>
                                         </div>
                                     </div>
                                     <div className="hidden lg:block text-right">
-                                        <span className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest ${getStatusColorClass(b.status)}`}>{b.status}</span>
+                                        <span className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest ${b.status === 'Active' ? 'bg-green-600 text-white' : b.status === 'Booked' ? 'bg-orange-500 text-white' : 'bg-slate-200 text-slate-500'}`}>{b.status}</span>
                                     </div>
                                 </div>
                             </div>
-                            
                             <div className="flex flex-wrap gap-2 w-full justify-start border-t pt-4">
-                                {isDue && b.status !== BookingStatus.CANCELLED && (
-                                    <button onClick={() => handleLunasiAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-colors shadow-lg shadow-green-100 active:scale-95">
-                                        <CheckCircle size={16}/> Lunasi
-                                    </button>
-                                )}
-                                {b.status === BookingStatus.ACTIVE && (
-                                    <button onClick={() => handleSelesaiAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors shadow-lg shadow-indigo-100 active:scale-95">
-                                        <History size={16}/> Selesai
-                                    </button>
-                                )}
-                                {b.status === BookingStatus.BOOKED && (
-                                    <button onClick={() => handleCancelAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-slate-200 text-slate-600 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-50 hover:text-red-600 transition-colors active:scale-95">
-                                        <XCircle size={16}/> Cancel
-                                    </button>
-                                )}
+                                {isDue && b.status !== BookingStatus.CANCELLED && <button onClick={() => handleLunasiAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-colors active:scale-95 shadow-lg shadow-green-100"><CheckCircle size={16}/> Lunasi</button>}
+                                {b.status === BookingStatus.ACTIVE && <button onClick={() => handleSelesaiAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors active:scale-95 shadow-lg shadow-indigo-100"><History size={16}/> Selesai</button>}
                                 <div className="h-8 w-px bg-slate-100 mx-2 hidden md:block"></div>
-                                <button 
-                                    onClick={() => { const c = cars.find(car=>car.id===b.carId); if(c || b.isRentToRent) window.open(generateWhatsAppLink(b, c || {name: b.externalCarName || '', plate: b.externalCarPlate || ''} as any), '_blank') }} 
-                                    className="px-3 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 transition-colors border border-green-100 flex items-center gap-2 text-xs font-bold"
-                                >
-                                    <MessageCircle size={16}/> <span className="hidden md:inline">Kirim WA</span>
-                                </button>
-                                <button 
-                                    onClick={() => { const c = cars.find(car=>car.id===b.carId); if(c || b.isRentToRent) generateInvoicePDF(b, c || {name: b.externalCarName || '', plate: b.externalCarPlate || ''} as any) }} 
-                                    className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 transition-colors border border-blue-100 flex items-center gap-2 text-xs font-bold"
-                                >
-                                    <Printer size={16}/> <span className="hidden md:inline">Nota PDF</span>
-                                </button>
-                                <button onClick={() => handleEdit(b)} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-indigo-50 hover:text-indigo-600 border border-slate-100"><Edit2 size={20}/></button>
-                                {b.status !== BookingStatus.CANCELLED && <button onClick={() => openChecklistModal(b)} className={`p-2.5 rounded-xl border ${b.checklist ? 'bg-green-600 text-white border-green-700' : 'bg-yellow-50 text-yellow-600 hover:bg-yellow-100 border-yellow-100'}`}><ClipboardCheck size={20}/></button>}
+                                <button onClick={() => { const c = cars.find(car=>car.id===b.carId); if(c || b.isRentToRent) window.open(generateWhatsAppLink(b, c || {name: b.externalCarName || '', plate: b.externalCarPlate || ''} as any), '_blank') }} className="px-3 py-2 bg-green-50 text-green-600 rounded-xl hover:bg-green-100 border border-green-100 flex items-center gap-2 text-xs font-bold"><MessageCircle size={16}/> Kirim WA</button>
+                                <button onClick={() => { const c = cars.find(car=>car.id===b.carId); if(c || b.isRentToRent) generateInvoicePDF(b, c || {name: b.externalCarName || '', plate: b.externalCarPlate || ''} as any) }} className="px-3 py-2 bg-blue-50 text-blue-600 rounded-xl hover:bg-blue-100 border border-blue-100 flex items-center gap-2 text-xs font-bold"><Printer size={16}/> Nota</button>
+                                <button onClick={() => handleEdit(b)} className="p-2.5 bg-slate-50 text-slate-600 rounded-xl hover:bg-indigo-50 border border-slate-100"><Edit2 size={20}/></button>
+                                {b.status !== BookingStatus.CANCELLED && <button onClick={() => openChecklistModal(b)} className={`p-2.5 rounded-xl border ${b.checklist ? 'bg-green-600 text-white border-green-700' : 'bg-yellow-50 text-yellow-600 border-yellow-100'}`}><ClipboardCheck size={20}/></button>}
                                 {isSuperAdmin && <button onClick={() => handleDelete(b.id)} className="p-2.5 bg-slate-50 text-slate-400 rounded-xl hover:bg-red-50 hover:text-red-600 border border-slate-100"><Trash2 size={20}/></button>}
                             </div>
                         </div>
@@ -1196,7 +968,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         </div>
       )}
       
-      {/* ... (Checklist Modal remains unchanged) ... */}
       {isChecklistModalOpen && checklistBooking && (
           <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-md">
              <div className="bg-white rounded-3xl w-full max-w-4xl p-8 shadow-2xl max-h-[95vh] overflow-y-auto border-t-8 border-indigo-600">

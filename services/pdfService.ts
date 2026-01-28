@@ -551,7 +551,12 @@ export const generateMonthlyReportPDF = (type: 'Driver' | 'Investor' | 'Vendor',
     currentY += 15;
 
     const boxW = (pageWidth - (margin * 2)) / 3;
-    const totalAmount = type === 'Driver' ? expenses.reduce((s, e) => s + e.amount, 0) : trips.reduce((s, t) => s + t.totalPrice, 0);
+    const totalAmount = type === 'Driver' 
+        ? expenses.reduce((s, e) => s + e.amount, 0) 
+        : type === 'Vendor' 
+            ? trips.reduce((s, t) => s + (t.vendorFee || 0), 0)
+            : trips.reduce((s, t) => s + t.totalPrice, 0); // Gross for Investor fallback
+
     const paid = expenses.filter(e => e.status === 'Paid').reduce((s, e) => s + e.amount, 0);
     const pending = expenses.filter(e => e.status !== 'Paid').reduce((s, e) => s + e.amount, 0);
 
@@ -567,7 +572,8 @@ export const generateMonthlyReportPDF = (type: 'Driver' | 'Investor' | 'Vendor',
         doc.text(value, x + w - 2, y + 11, { align: 'right' });
     };
 
-    drawColoredBox(type === 'Driver' ? "TOTAL GAJI" : "TOTAL SETORAN", `Rp ${totalAmount.toLocaleString('id-ID')}`, margin, currentY, boxW, [34, 211, 238]);
+    const topLabel = type === 'Driver' ? "TOTAL GAJI" : type === 'Vendor' ? "TOTAL TAGIHAN" : "EST. BAGI HASIL";
+    drawColoredBox(topLabel, `Rp ${totalAmount.toLocaleString('id-ID')}`, margin, currentY, boxW, [34, 211, 238]);
     drawColoredBox("DIBAYARKAN", `Rp ${paid.toLocaleString('id-ID')}`, margin + boxW, currentY, boxW, [34, 197, 94]);
     drawColoredBox("PIUTANG", `Rp ${pending.toLocaleString('id-ID')}`, margin + (boxW * 2), currentY, boxW, [245, 158, 11]);
     
@@ -582,69 +588,78 @@ export const generateMonthlyReportPDF = (type: 'Driver' | 'Investor' | 'Vendor',
     doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
     doc.setFontSize(8);
     doc.text("Tanggal", margin + 2, currentY + 4.5);
-    doc.text("Unit", margin + 35, currentY + 4.5);
+    doc.text("Unit / Kendaraan", margin + 35, currentY + 4.5);
     doc.text("Durasi", margin + 85, currentY + 4.5);
     doc.text("Penyewa", margin + 110, currentY + 4.5);
-    doc.text("Status", pageWidth - margin - 2, currentY + 4.5, { align: 'right' });
+    doc.text(type === 'Vendor' ? "HPP Vendor" : "Status", pageWidth - margin - 2, currentY + 4.5, { align: 'right' });
     currentY += 7;
 
     trips.forEach(t => {
         if (currentY + 10 > pageHeight - 20) { doc.addPage(); currentY = 20; }
         doc.setFont("helvetica", "normal");
         doc.text(new Date(t.startDate).toLocaleDateString('id-ID'), margin + 2, currentY + 4);
-        doc.text("Unit Mobil", margin + 35, currentY + 4); 
+        
+        const unitName = type === 'Vendor' ? (t.externalCarName || "-") : "Unit Armada";
+        doc.text(doc.splitTextToSize(unitName, 45), margin + 35, currentY + 4); 
+
         const diffMs = new Date(t.endDate).getTime() - new Date(t.startDate).getTime();
         const days = Math.max(1, Math.ceil(diffMs / (1000 * 60 * 60 * 24)));
         doc.text(`${days} hari`, margin + 85, currentY + 4);
-        doc.text(t.customerName, margin + 110, currentY + 4);
-        if (t.status === 'Booked') doc.setTextColor(37, 99, 235);
-        else if (t.status === 'Active') doc.setTextColor(220, 38, 38);
-        else if (t.status === 'Completed') doc.setTextColor(22, 163, 74);
-        doc.setFont("helvetica", "bold");
-        doc.text(t.status.toUpperCase(), pageWidth - margin - 2, currentY + 4, { align: 'right' });
+        doc.text(doc.splitTextToSize(t.customerName, 40), margin + 110, currentY + 4);
+        
+        if (type === 'Vendor') {
+            doc.setFont("helvetica", "bold");
+            doc.text(`Rp ${(t.vendorFee || 0).toLocaleString('id-ID')}`, pageWidth - margin - 2, currentY + 4, { align: 'right' });
+        } else {
+            if (t.status === 'Booked') doc.setTextColor(37, 99, 235);
+            else if (t.status === 'Active') doc.setTextColor(220, 38, 38);
+            else if (t.status === 'Completed') doc.setTextColor(22, 163, 74);
+            doc.setFont("helvetica", "bold");
+            doc.text(t.status.toUpperCase(), pageWidth - margin - 2, currentY + 4, { align: 'right' });
+        }
+        
         doc.setTextColor(0,0,0);
+        doc.setDrawColor(230);
         doc.line(margin, currentY + 6, pageWidth - margin, currentY + 6);
         currentY += 7;
     });
 
     currentY += 10;
-    if (currentY + 25 > pageHeight - 20) { doc.addPage(); currentY = 20; }
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "bold");
-    doc.text(type === 'Investor' ? "Riwayat Setoran" : "Riwayat Gaji & Reimbursement", margin, currentY);
-    currentY += 5;
-
-    doc.setFillColor(230, 230, 230);
-    doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
-    doc.setFontSize(8);
-    doc.text("Tanggal", margin + 2, currentY + 4.5);
-    doc.text(type === 'Investor' ? "Detail" : "Kategori", margin + 35, currentY + 4.5);
-    if (type === 'Driver') doc.text("Detail", margin + 75, currentY + 4.5);
-    doc.text("Nominal (Rp)", type === 'Driver' ? margin + 130 : margin + 110, currentY + 4.5);
-    doc.text("Status", pageWidth - margin - 2, currentY + 4.5, { align: 'right' });
-    currentY += 7;
-
-    expenses.forEach(e => {
-        if (currentY + 10 > pageHeight - 20) { doc.addPage(); currentY = 20; }
-        doc.setFont("helvetica", "normal");
-        doc.text(new Date(e.date).toLocaleDateString('id-ID'), margin + 2, currentY + 4);
-        doc.text(type === 'Driver' ? e.category : e.description, margin + 35, currentY + 4);
-        if (type === 'Driver') {
-            const detailLines = doc.splitTextToSize(e.description, 50);
-            doc.text(detailLines[0], margin + 75, currentY + 4);
-        }
-        doc.text(e.amount.toLocaleString('id-ID'), type === 'Driver' ? margin + 130 : margin + 110, currentY + 4);
-        const isPaid = e.status === 'Paid';
-        doc.setTextColor(isPaid ? 22 : 220, isPaid ? 163 : 38, isPaid ? 74 : 38);
+    if (expenses.length > 0) {
+        if (currentY + 25 > pageHeight - 20) { doc.addPage(); currentY = 20; }
+        doc.setFontSize(10);
         doc.setFont("helvetica", "bold");
-        doc.text(isPaid ? "PAID" : "UNPAID", pageWidth - margin - 2, currentY + 4, { align: 'right' });
-        doc.setTextColor(0,0,0);
-        doc.line(margin, currentY + 6, pageWidth - margin, currentY + 6);
+        doc.text(type === 'Investor' ? "Riwayat Setoran" : "Riwayat Pembayaran & Klaim", margin, currentY);
+        currentY += 5;
+
+        doc.setFillColor(230, 230, 230);
+        doc.rect(margin, currentY, pageWidth - (margin * 2), 7, 'F');
+        doc.setFontSize(8);
+        doc.text("Tanggal", margin + 2, currentY + 4.5);
+        doc.text("Deskripsi / Kategori", margin + 35, currentY + 4.5);
+        doc.text("Nominal (Rp)", margin + 110, currentY + 4.5);
+        doc.text("Status", pageWidth - margin - 2, currentY + 4.5, { align: 'right' });
         currentY += 7;
-    });
+
+        expenses.forEach(e => {
+            if (currentY + 10 > pageHeight - 20) { doc.addPage(); currentY = 20; }
+            doc.setFont("helvetica", "normal");
+            doc.text(new Date(e.date).toLocaleDateString('id-ID'), margin + 2, currentY + 4);
+            doc.text(doc.splitTextToSize(`${e.description} (${e.category})`, 70), margin + 35, currentY + 4);
+            doc.text(e.amount.toLocaleString('id-ID'), margin + 110, currentY + 4);
+            const isPaid = e.status === 'Paid';
+            doc.setTextColor(isPaid ? 22 : 220, isPaid ? 163 : 38, isPaid ? 74 : 38);
+            doc.setFont("helvetica", "bold");
+            doc.text(isPaid ? "PAID" : "PENDING", pageWidth - margin - 2, currentY + 4, { align: 'right' });
+            doc.setTextColor(0,0,0);
+            doc.setDrawColor(230);
+            doc.line(margin, currentY + 6, pageWidth - margin, currentY + 6);
+            currentY += 7;
+        });
+    }
 
     drawFooterMetadata(doc, user);
-    doc.save(`Laporan_${type}_${entity.name}_${month}.pdf`);
+    doc.save(`Laporan_${type}_${entity.name.replace(/\s+/g, '_')}_${month}.pdf`);
 };
 
 export const generateStatisticsPDF = (

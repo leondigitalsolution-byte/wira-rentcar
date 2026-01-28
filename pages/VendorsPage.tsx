@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Vendor, Booking, Transaction, BookingStatus, Car } from '../types';
 import { getStoredData, setStoredData, exportToExcel, importFromExcel, mergeData, compressImage, downloadTemplateExcel } from '../services/dataService';
 import { Plus, Trash2, Phone, Edit2, X, Image as ImageIcon, History, Download, Upload, Building, MapPin, Search, FileSpreadsheet, Info, ChevronDown, Calendar, Printer, Wallet, Car as CarIcon } from 'lucide-react';
+import { generateMonthlyReportPDF } from '../services/pdfService';
 
 const VendorsPage = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -141,6 +142,12 @@ const VendorsPage = () => {
     exportToExcel(combined, `Laporan_Vendor_${historyVendor.name.replace(/\s+/g, '_')}_${historyStartDate}`);
   };
 
+  const handlePrintResume = () => {
+    if (!historyVendor) return;
+    const monthStr = new Date(historyStartDate).toLocaleDateString('id-ID', { month: 'long', year: 'numeric' });
+    generateMonthlyReportPDF('Vendor', historyVendor, monthStr, vendorHistoryData.expenses, vendorHistoryData.trips);
+  };
+
   return (
     <div className="space-y-6">
       <div className="sticky top-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 py-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
@@ -231,7 +238,7 @@ const VendorsPage = () => {
                           <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Total Tagihan Vendor</p>
                           <p className="text-2xl font-black text-red-600">Rp {vendorHistoryData.trips.reduce((s,t)=>s+(t.vendorFee||0), 0).toLocaleString()}</p>
                       </div>
-                      <button onClick={() => alert('Cetak PDF dalam proses sinkronisasi')} className="px-6 py-2.5 bg-red-600 text-white rounded-xl font-bold flex items-center gap-2 active:scale-95 transition-transform"><Printer size={18}/> Cetak Resume</button>
+                      <button onClick={handlePrintResume} className="px-6 py-2.5 bg-red-600 text-white rounded-xl font-bold flex items-center gap-2 active:scale-95 transition-transform"><Printer size={18}/> Cetak Resume</button>
                   </div>
               </div>
           </div>

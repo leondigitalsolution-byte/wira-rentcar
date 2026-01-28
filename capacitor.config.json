@@ -1,4 +1,3 @@
-
 {
   "appId": "com.wirarentcar.site",
   "appName": "WIRA RENT CAR",
@@ -18,7 +17,7 @@
       "backgroundColor": "#ffffffff",
       "androidSplashResourceName": "splash",
       "showSpinner": true,
-      "spinnerColor": "#dc2626"
+      "spinnerColor": "#475569"
     }
   }
 }

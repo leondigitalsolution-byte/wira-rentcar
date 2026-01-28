@@ -160,7 +160,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
   };
 
   const THEME_OPTIONS = [
-      { id: 'red', name: 'Merah (Default)', bg: 'bg-red-600' },
+      { id: 'red', name: 'Abu-abu (Default)', bg: 'bg-slate-600' }, // Updated from Red to Gray/Slate
       { id: 'blue', name: 'Biru', bg: 'bg-blue-600' },
       { id: 'green', name: 'Hijau', bg: 'bg-green-600' },
       { id: 'purple', name: 'Ungu', bg: 'bg-purple-600' },

@@ -1,4 +1,3 @@
-
 {
   "short_name": "WIRA RENT CAR",
   "name": "Wira Rent Car Management",
@@ -20,7 +19,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "theme_color": "#DC2626",
+  "theme_color": "#475569",
   "background_color": "#ffffff",
   "orientation": "portrait"
 }

@@ -17,8 +17,8 @@ export const Logo = ({ className = "h-12 w-auto", src }: { className?: string, s
           {/* C (Steering Wheel Style) */}
           <path d="M115 27.5 A 22.5 22.5 0 1 0 115 28" stroke="black" strokeWidth="10" strokeLinecap="round" fill="none" transform="translate(-25, 0)"/>
           
-          {/* Red Dot Center */}
-          <circle cx="90" cy="27.5" r="5" fill="#DC2626" /> 
+          {/* Gray Dot Center (Neutralized from Red) */}
+          <circle cx="90" cy="27.5" r="5" fill="#64748b" /> 
       </svg>
     )}
   </div>
@@ -36,7 +36,7 @@ export const LogoText = ({ title }: { title?: string }) => {
           </span>
          </div>
          {/* Optional subtitle or part of logo styling */}
-         <span className="text-[9px] font-bold text-red-600 tracking-[0.2em] uppercase">MANAGEMENT</span>
+         <span className="text-[9px] font-bold text-slate-500 tracking-[0.2em] uppercase">MANAGEMENT</span>
     </div>
   );
 };

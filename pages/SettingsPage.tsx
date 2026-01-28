@@ -1,11 +1,10 @@
-
 import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import { useLocation } from 'react-router-dom';
 import { AppSettings, User, Driver, Partner } from '../types';
 import { getStoredData, setStoredData, DEFAULT_SETTINGS, compressImage } from '../services/dataService';
 import { getUsers, saveUser, deleteUser } from '../services/authService';
-import { FileText, List, X, MessageCircle, Palette, Moon, Sun, Camera, Link as LinkIcon } from 'lucide-react';
+import { FileText, List, X, MessageCircle, Palette, Moon, Sun, Camera, Link as LinkIcon, Clock } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
 interface Props {
@@ -52,7 +51,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
-    setSettings(prev => ({ ...prev, [name]: value }));
+    setSettings(prev => ({ ...prev, [name]: name === 'overtimeValue' ? Number(value) : value }));
     setIsSaved(false);
   };
 
@@ -328,6 +327,54 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
 
           {activeTab === 'master' && isSuperAdmin && (
               <div className="space-y-8 animate-fade-in">
+                  {/* OVERTIME SETTINGS */}
+                  <div className="bg-indigo-50 dark:bg-indigo-900/10 p-6 rounded-2xl border border-indigo-100 dark:border-indigo-800">
+                      <h3 className="font-black text-lg mb-4 flex items-center gap-2 text-indigo-800 dark:text-indigo-300 uppercase tracking-tight">
+                          <Clock size={20}/> Pengaturan Denda Overtime
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div>
+                              <label className="block text-xs font-black uppercase text-slate-400 mb-2">Tipe Denda (Per Jam)</label>
+                              <div className="flex p-1 bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-700">
+                                  <button 
+                                    onClick={() => setSettings(prev => ({...prev, overtimeType: 'Percentage'}))}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${settings.overtimeType === 'Percentage' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500'}`}
+                                  >
+                                      Persentase (%)
+                                  </button>
+                                  <button 
+                                    onClick={() => setSettings(prev => ({...prev, overtimeType: 'Nominal'}))}
+                                    className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${settings.overtimeType === 'Nominal' ? 'bg-indigo-600 text-white shadow-md' : 'text-slate-500'}`}
+                                  >
+                                      Nominal (Rp)
+                                  </button>
+                              </div>
+                          </div>
+                          <div>
+                              <label className="block text-xs font-black uppercase text-slate-400 mb-2">
+                                  Nilai Denda ({settings.overtimeType === 'Percentage' ? '% dari Sewa' : 'Rupiah'})
+                              </label>
+                              <div className="relative">
+                                  <span className="absolute left-3 top-2.5 text-slate-400 font-bold">
+                                      {settings.overtimeType === 'Percentage' ? '%' : 'Rp'}
+                                  </span>
+                                  <input 
+                                    type="number"
+                                    name="overtimeValue"
+                                    value={settings.overtimeValue}
+                                    onChange={handleChange}
+                                    className="w-full border dark:border-slate-700 dark:bg-slate-900 dark:text-white rounded-xl p-2.5 pl-10 font-bold focus:ring-2 ring-indigo-500 outline-none"
+                                  />
+                              </div>
+                              <p className="text-[10px] text-slate-500 mt-2 italic">
+                                  {settings.overtimeType === 'Percentage' 
+                                    ? '*Contoh: 10% dari harga harian unit per jam keterlambatan.' 
+                                    : '*Contoh: Rp 50.000 per jam keterlambatan.'}
+                              </p>
+                          </div>
+                      </div>
+                  </div>
+
                   <div>
                       <h3 className="font-bold text-lg mb-4 flex items-center gap-2 text-slate-800 dark:text-slate-200"><List size={20}/> Kategori Mobil</h3>
                       <div className="flex gap-2 mb-4">

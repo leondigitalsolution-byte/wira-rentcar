@@ -57,6 +57,10 @@ export interface AppSettings {
   carCategories: string[];
   rentalPackages: string[];
 
+  // Overtime Settings
+  overtimeType: 'Percentage' | 'Nominal';
+  overtimeValue: number;
+
   // GPS Integration
   gpsProvider: 'Simulation' | 'Traccar' | 'Custom';
   gpsApiUrl?: string;

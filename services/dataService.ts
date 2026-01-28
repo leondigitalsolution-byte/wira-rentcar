@@ -81,6 +81,8 @@ _Mohon konfirmasi jika data sudah sesuai._
 {footer}`,
   carCategories: ['MPV', 'SUV', 'Sedan', 'City Car', 'Luxury', 'Minibus'],
   rentalPackages: ['12 Jam (Dalam Kota)', '24 Jam (Dalam Kota)', '24 Jam (Luar Kota)'],
+  overtimeType: 'Percentage',
+  overtimeValue: 10,
   gpsProvider: 'Simulation'
 };
 

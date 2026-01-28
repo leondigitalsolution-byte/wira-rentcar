@@ -6,7 +6,7 @@ import {
   Filter, Info, Send, Wallet, CheckSquare, Clock as ClockIcon,
   DollarSign, CreditCard, Tag, ArrowRight, History, XCircle,
   Camera, Printer, ChevronLeft, ChevronRight, LayoutList, GanttChart,
-  Building, UserCheck, Inbox
+  Building, UserCheck, Inbox, Tag as TagIcon, SearchIcon
 } from 'lucide-react';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -34,6 +34,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   // Timeline State
   const [timelineDate, setTimelineDate] = useState(new Date());
   const [timelineSearch, setTimelineSearch] = useState('');
+  const [timelineBrandFilter, setTimelineBrandFilter] = useState('All');
 
   // List Filters
   const [filterStartDate, setFilterStartDate] = useState('');
@@ -43,15 +44,34 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
   const [editingBookingId, setEditingBookingId] = useState<string | null>(null);
   
-  const [startDate, setStartDate] = useState('');
+  // Requirement: Default date is today
+  const todayStr = new Date().toISOString().split('T')[0];
+  const [startDate, setStartDate] = useState(todayStr);
   const [startTime, setStartTime] = useState('08:00');
-  const [endDate, setEndDate] = useState('');
+  const [endDate, setEndDate] = useState(todayStr);
   const [endTime, setEndTime] = useState('08:00');
   
   // Car Selection State
   const [selectedCarId, setSelectedCarId] = useState<string>('');
   const [isCarDropdownOpen, setIsCarDropdownOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
+  const [carSearchQuery, setCarSearchQuery] = useState('');
+  const carDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Customer Selection State
+  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
+  const [isCustomerDropdownOpen, setIsCustomerDropdownOpen] = useState(false);
+  const [customerSearchQuery, setCustomerSearchQuery] = useState('');
+  const customerDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Driver Selection State
+  const [isDriverDropdownOpen, setIsDriverDropdownOpen] = useState(false);
+  const [driverSearchQuery, setDriverSearchQuery] = useState('');
+  const driverDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Vendor Selection State
+  const [isVendorDropdownOpen, setIsVendorDropdownOpen] = useState(false);
+  const [vendorSearchQuery, setVendorSearchQuery] = useState('');
+  const vendorDropdownRef = useRef<HTMLDivElement>(null);
 
   // Rent to Rent State
   const [isRentToRent, setIsRentToRent] = useState(false);
@@ -64,7 +84,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [selectedDriverId, setSelectedDriverId] = useState<string>('');
   const [driverNote, setDriverNote] = useState('');
 
-  const [selectedCustomerId, setSelectedCustomerId] = useState<string>('');
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   const [packageType, setPackageType] = useState<string>('');
@@ -125,13 +144,25 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
     setCustomers(getStoredData<Customer[]>('customers', []));
     const loadedSettings = getStoredData<AppSettings>('appSettings', DEFAULT_SETTINGS);
     setSettings(loadedSettings);
-    if(loadedSettings.rentalPackages.length > 0) {
+    
+    if(loadedSettings.rentalPackages && loadedSettings.rentalPackages.length > 0) {
         setPackageType(loadedSettings.rentalPackages[0]);
+    } else {
+        setPackageType(DEFAULT_SETTINGS.rentalPackages[0]);
     }
 
     const handleClickOutside = (event: MouseEvent) => {
-        if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        if (carDropdownRef.current && !carDropdownRef.current.contains(event.target as Node)) {
             setIsCarDropdownOpen(false);
+        }
+        if (customerDropdownRef.current && !customerDropdownRef.current.contains(event.target as Node)) {
+            setIsCustomerDropdownOpen(false);
+        }
+        if (driverDropdownRef.current && !driverDropdownRef.current.contains(event.target as Node)) {
+            setIsDriverDropdownOpen(false);
+        }
+        if (vendorDropdownRef.current && !vendorDropdownRef.current.contains(event.target as Node)) {
+            setIsVendorDropdownOpen(false);
         }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -161,7 +192,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       }
   }, [selectedCarId, packageType, cars, editingBookingId, isRentToRent]);
 
-  // Separate Effect for Auto Overdue Calculation
+  // Perhitungan Overtime Fee Otomatis
   useEffect(() => {
     if (actualReturnDate && actualReturnTime && endDate && endTime) {
         const actual = new Date(`${actualReturnDate}T${actualReturnTime}`);
@@ -169,13 +200,22 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
         if (actual > scheduled) {
             const diffMs = actual.getTime() - scheduled.getTime();
             const overdueHours = Math.ceil(diffMs / (1000 * 60 * 60));
-            const calculated = overdueHours * ((customBasePrice || 0) / 10);
+            
+            let calculated = 0;
+            const ovType = settings?.overtimeType || 'Percentage';
+            const ovVal = settings?.overtimeValue || 10;
+
+            if (ovType === 'Percentage') {
+                calculated = overdueHours * ((customBasePrice || 0) * (ovVal / 100));
+            } else {
+                calculated = overdueHours * ovVal;
+            }
             setOvertimeFee(calculated);
         } else {
             setOvertimeFee(0);
         }
     }
-  }, [actualReturnDate, actualReturnTime, endDate, endTime, customBasePrice]);
+  }, [actualReturnDate, actualReturnTime, endDate, endTime, customBasePrice, settings]);
 
   useEffect(() => {
     if (!startDate || !endDate) return;
@@ -487,10 +527,10 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   };
 
   const resetForm = () => {
-    setEditingBookingId(null); setSelectedCarId(''); setStartDate(''); setEndDate('');
+    setEditingBookingId(null); setSelectedCarId(''); setStartDate(todayStr); setEndDate(todayStr);
     setIsRentToRent(false); setSelectedVendorId(''); setExternalCarName(''); setExternalCarPlate(''); setVendorFee(0);
     setUseDriver(false); setSelectedDriverId(''); setDriverNote('');
-    setSelectedCustomerId(''); setCustomerName(''); setCustomerPhone(''); setPackageType(settings.rentalPackages[0]);
+    setSelectedCustomerId(''); setCustomerName(''); setCustomerPhone(''); setPackageType(settings?.rentalPackages?.[0] || '');
     setDestination('Dalam Kota'); setCustomerNote(''); setCustomBasePrice(0); setDeliveryFee(0);
     setAmountPaid('0'); setActualReturnDate(''); setActualReturnTime(''); setOvertimeFee(0);
     setExtraCost(0); setExtraCostDescription(''); setInternalNotes(''); setPaymentProofImage(null);
@@ -589,17 +629,58 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   };
 
   const selectedCarData = cars.find(c => c.id === selectedCarId);
+  const selectedCustomerData = customers.find(c => c.id === selectedCustomerId);
+  const selectedDriverData = drivers.find(d => d.id === selectedDriverId);
+  const selectedVendorData = vendors.find(v => v.id === selectedVendorId);
   
   const statusPriority: Record<string, number> = {
       [BookingStatus.ACTIVE]: 1, [BookingStatus.BOOKED]: 2, [BookingStatus.COMPLETED]: 3, [BookingStatus.CANCELLED]: 4, [BookingStatus.MAINTENANCE]: 5
   };
 
-  const filteredTimelineCars = cars.filter(c => 
-      c.name.toLowerCase().includes(timelineSearch.toLowerCase()) || 
-      c.plate.toLowerCase().includes(timelineSearch.toLowerCase())
-  );
+  // --- TIMELINE FILTERED & GROUPED DATA ---
+  const timelineBrands = useMemo(() => {
+    const brandsSet = new Set<string>();
+    cars.forEach(c => c.brand && brandsSet.add(c.brand));
+    return Array.from(brandsSet).sort();
+  }, [cars]);
 
-  // Filter Logic for List - UPDATED: SORT BY START DATE DESCENDING
+  const groupedTimelineCars = useMemo(() => {
+    let filtered = cars.filter(c => 
+        (c.name.toLowerCase().includes(timelineSearch.toLowerCase()) || 
+         c.plate.toLowerCase().includes(timelineSearch.toLowerCase())) &&
+        (timelineBrandFilter === 'All' || c.brand === timelineBrandFilter)
+    );
+
+    // Grouping by brand
+    const groups: { [brand: string]: Car[] } = {};
+    filtered.forEach(car => {
+        const b = car.brand || 'Lainnya';
+        if (!groups[b]) groups[b] = [];
+        groups[b].push(car);
+    });
+
+    // Sorting within groups by name then plate
+    Object.keys(groups).forEach(b => {
+        groups[b].sort((a, b) => {
+            const nameComp = a.name.localeCompare(b.name);
+            if (nameComp !== 0) return nameComp;
+            return a.plate.localeCompare(b.plate);
+        });
+    });
+
+    // Return as array of objects for easier mapping
+    const brandKeys = Object.keys(groups).sort((a, b) => {
+        if (a === 'Lainnya') return 1;
+        if (b === 'Lainnya') return -1;
+        return a.localeCompare(b);
+    });
+
+    return brandKeys.map(brand => ({
+        brand,
+        cars: groups[brand]
+    }));
+  }, [cars, timelineSearch, timelineBrandFilter]);
+
   const filteredBookingsList = useMemo(() => {
     return bookings.filter(b => {
         const bDate = b.startDate.split('T')[0];
@@ -623,9 +704,40 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       };
   }, [bookings]);
 
+  // Search Logic for Dropdowns
+  const searchableCars = useMemo(() => {
+      if (!carSearchQuery) return cars;
+      return cars.filter(c => 
+        c.name.toLowerCase().includes(carSearchQuery.toLowerCase()) || 
+        c.plate.toLowerCase().includes(carSearchQuery.toLowerCase())
+      );
+  }, [cars, carSearchQuery]);
+
+  const searchableCustomers = useMemo(() => {
+      if (!customerSearchQuery) return customers;
+      return customers.filter(c => 
+        c.name.toLowerCase().includes(customerSearchQuery.toLowerCase()) || 
+        c.phone.includes(customerSearchQuery)
+      );
+  }, [customers, customerSearchQuery]);
+
+  const searchableDrivers = useMemo(() => {
+      if (!driverSearchQuery) return drivers;
+      return drivers.filter(d => 
+        d.name.toLowerCase().includes(driverSearchQuery.toLowerCase()) || 
+        d.phone.includes(driverSearchQuery)
+      );
+  }, [drivers, driverSearchQuery]);
+
+  const searchableVendors = useMemo(() => {
+      if (!vendorSearchQuery) return vendors;
+      return vendors.filter(v => 
+        v.name.toLowerCase().includes(vendorSearchQuery.toLowerCase())
+      );
+  }, [vendors, vendorSearchQuery]);
+
   return (
     <div className="space-y-6">
-      {/* FREEZE HEADER SECTION */}
       <div className="sticky top-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 py-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
           <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
             <div>
@@ -634,13 +746,13 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
             </div>
             
             <div className="flex bg-white dark:bg-slate-800 p-1 rounded-xl border border-slate-200 dark:border-slate-700 shadow-sm overflow-x-auto">
-               <button onClick={() => setActiveTab('list')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'list' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+               <button onClick={() => setActiveTab('list')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'list' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
                    <LayoutList size={16}/> Daftar
                </button>
-               <button onClick={() => setActiveTab('timeline')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'timeline' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+               <button onClick={() => setActiveTab('timeline')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'timeline' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
                    <GanttChart size={16}/> Timeline
                </button>
-               <button onClick={() => setActiveTab('create')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'create' ? 'bg-indigo-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
+               <button onClick={() => setActiveTab('create')} className={`px-4 py-2 rounded-lg text-sm font-bold transition-all flex items-center gap-2 whitespace-nowrap ${activeTab === 'create' ? 'bg-red-600 text-white shadow-lg' : 'text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-700'}`}>
                    <Plus size={16}/> Input Baru
                </button>
             </div>
@@ -655,17 +767,32 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
       {activeTab === 'timeline' && (
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl shadow-sm overflow-hidden flex flex-col h-[calc(100vh-200px)]">
-              <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row justify-between items-center bg-slate-50 dark:bg-slate-900/50 gap-4 flex-shrink-0">
-                  <div className="flex items-center gap-2">
+              <div className="p-4 border-b border-slate-200 dark:border-slate-700 flex flex-wrap justify-between items-center bg-slate-50 dark:bg-slate-900/50 gap-4 flex-shrink-0">
+                  <div className="flex items-center gap-2 order-1 sm:order-none">
                       <button onClick={() => setTimelineDate(new Date(timelineDate.setMonth(timelineDate.getMonth() - 1)))} className="p-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg hover:bg-slate-50"><ChevronLeft size={16}/></button>
                       <h3 className="font-bold text-slate-800 dark:text-white w-40 text-center">{timelineDate.toLocaleDateString('id-ID', { month: 'long', year: 'numeric' })}</h3>
                       <button onClick={() => setTimelineDate(new Date(timelineDate.setMonth(timelineDate.getMonth() + 1)))} className="p-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-lg hover:bg-slate-50"><ChevronRight size={16}/></button>
                   </div>
-                  <div className="relative w-full sm:w-64">
-                      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                      <input type="text" placeholder="Cari Unit..." className="w-full pl-9 pr-3 py-2 border dark:border-slate-700 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:bg-slate-900 dark:text-white" value={timelineSearch} onChange={e => setTimelineSearch(e.target.value)} />
+                  
+                  <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[300px] justify-center sm:justify-end">
+                      <div className="relative w-full sm:w-48">
+                          <TagIcon size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <select 
+                            className="w-full pl-9 pr-3 py-2 border dark:border-slate-700 rounded-lg text-xs font-bold focus:ring-2 focus:ring-red-500 outline-none dark:bg-slate-900 dark:text-white appearance-none" 
+                            value={timelineBrandFilter} 
+                            onChange={e => setTimelineBrandFilter(e.target.value)}
+                          >
+                              <option value="All">Semua Merek</option>
+                              {timelineBrands.map(b => <option key={b} value={b}>{b.toUpperCase()}</option>)}
+                          </select>
+                      </div>
+                      <div className="relative w-full sm:w-48">
+                          <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                          <input type="text" placeholder="Cari Unit..." className="w-full pl-9 pr-3 py-2 border dark:border-slate-700 rounded-lg text-xs focus:ring-2 focus:ring-red-500 outline-none dark:bg-slate-900 dark:text-white" value={timelineSearch} onChange={e => setTimelineSearch(e.target.value)} />
+                      </div>
                   </div>
-                  <div className="flex items-center gap-3 text-xs font-medium dark:text-slate-300">
+
+                  <div className="flex items-center gap-3 text-[10px] font-black uppercase tracking-wider dark:text-slate-300 w-full sm:w-auto justify-center">
                       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-blue-500"></span> Booked</span>
                       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-green-500"></span> Active</span>
                       <span className="flex items-center gap-1"><span className="w-3 h-3 rounded-sm bg-slate-400"></span> Selesai</span>
@@ -681,38 +808,53 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                               ))}
                           </div>
                       </div>
-                      {filteredTimelineCars.map(car => (
-                          <div key={car.id} className="flex border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 relative h-16 group">
-                              <div className="w-48 p-3 flex items-center gap-3 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 sticky left-0 z-10 group-hover:bg-slate-50 dark:group-hover:bg-slate-700 transition-colors">
-                                  {car.image ? <img src={car.image} className="w-10 h-10 rounded-lg object-cover" /> : <div className="w-10 h-10 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-slate-400"><CarIcon size={16}/></div>}
-                                  <div><p className="text-xs font-bold text-slate-800 dark:text-white truncate w-24">{car.name}</p><p className="text-[10px] text-slate-500 dark:text-slate-400">{car.plate}</p></div>
+                      
+                      {groupedTimelineCars.map(group => (
+                          <React.Fragment key={group.brand}>
+                              {/* Brand Header */}
+                              <div className="flex bg-slate-100/50 dark:bg-slate-800/80 sticky left-0 z-10 border-b border-slate-200 dark:border-slate-700">
+                                  <div className="w-full px-4 py-1.5 text-[10px] font-black text-red-600 dark:text-red-400 uppercase tracking-widest flex items-center gap-2">
+                                      <TagIcon size={12}/> {group.brand}
+                                  </div>
                               </div>
-                              <div className="flex flex-1 relative">
-                                  {getDaysInMonth(timelineDate).map(d => (
-                                      <div key={d.getDate()} className={`flex-1 min-w-[30px] border-r border-slate-100 dark:border-slate-800 h-full ${d.getDay() === 0 ? 'bg-red-50/30 dark:bg-red-900/10' : ''} hover:bg-indigo-50 dark:hover:bg-indigo-900/20 cursor-pointer transition-colors`} onClick={() => handleTimelineCellClick(car.id, d)}></div>
-                                  ))}
-                                  {getTimelineBookings(car.id).map(b => {
-                                      const daysInMonth = new Date(timelineDate.getFullYear(), timelineDate.getMonth() + 1, 0).getDate();
-                                      const start = new Date(b.startDate);
-                                      const end = new Date(b.endDate);
-                                      const monthStart = new Date(timelineDate.getFullYear(), timelineDate.getMonth(), 1);
-                                      let startDay = start.getDate();
-                                      let duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                                      if (start < monthStart) {
-                                          const offset = Math.ceil((monthStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
-                                          duration -= offset; startDay = 1;
-                                      }
-                                      if (startDay + duration > daysInMonth + 1) duration = (daysInMonth + 1) - startDay;
-                                      if (duration <= 0) return null;
-                                      const leftPos = ((startDay - 1) / daysInMonth) * 100;
-                                      const width = (duration / daysInMonth) * 100;
-                                      const colorClass = b.status === 'Active' ? 'bg-green-500' : b.status === 'Completed' ? 'bg-slate-400' : 'bg-blue-500';
-                                      return (
-                                          <div key={b.id} className={`absolute top-3 bottom-3 rounded-md shadow-sm text-[10px] text-white flex items-center justify-center font-bold px-1 overflow-hidden whitespace-nowrap cursor-pointer z-0 hover:z-20 hover:scale-105 transition-transform ${colorClass}`} style={{ left: `${leftPos}%`, width: `${width}%` }} onClick={(e) => { e.stopPropagation(); handleEdit(b); }}>{b.customerName}</div>
-                                      );
-                                  })}
-                              </div>
-                          </div>
+                              
+                              {group.cars.map(car => (
+                                  <div key={car.id} className="flex border-b border-slate-100 dark:border-slate-800 hover:bg-slate-50/50 dark:hover:bg-slate-700/30 relative h-16 group">
+                                      <div className="w-48 p-3 flex items-center gap-3 border-r border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 flex-shrink-0 sticky left-0 z-10 group-hover:bg-slate-50 dark:group-hover:bg-slate-700 transition-colors">
+                                          {car.image ? <img src={car.image} className="w-10 h-10 rounded-lg object-cover shadow-sm border border-slate-100 dark:border-slate-700" /> : <div className="w-10 h-10 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-slate-400"><CarIcon size={16}/></div>}
+                                          <div className="min-w-0 flex-1">
+                                              <p className="text-[11px] font-bold text-slate-800 dark:text-white truncate">{car.name}</p>
+                                              <p className="text-[9px] font-black text-slate-500 dark:text-slate-400 font-mono tracking-tighter">{car.plate}</p>
+                                          </div>
+                                      </div>
+                                      <div className="flex flex-1 relative">
+                                          {getDaysInMonth(timelineDate).map(d => (
+                                              <div key={d.getDate()} className={`flex-1 min-w-[30px] border-r border-slate-100 dark:border-slate-800 h-full ${d.getDay() === 0 ? 'bg-red-50/30 dark:bg-red-900/10' : ''} hover:bg-red-50 dark:hover:bg-red-900/20 cursor-pointer transition-colors`} onClick={() => handleTimelineCellClick(car.id, d)}></div>
+                                          ))}
+                                          {getTimelineBookings(car.id).map(b => {
+                                              const daysInMonth = new Date(timelineDate.getFullYear(), timelineDate.getMonth() + 1, 0).getDate();
+                                              const start = new Date(b.startDate);
+                                              const end = new Date(b.endDate);
+                                              const monthStart = new Date(timelineDate.getFullYear(), timelineDate.getMonth(), 1);
+                                              let startDay = start.getDate();
+                                              let duration = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                                              if (start < monthStart) {
+                                                  const offset = Math.ceil((monthStart.getTime() - start.getTime()) / (1000 * 60 * 60 * 24));
+                                                  duration -= offset; startDay = 1;
+                                              }
+                                              if (startDay + duration > daysInMonth + 1) duration = (daysInMonth + 1) - startDay;
+                                              if (duration <= 0) return null;
+                                              const leftPos = ((startDay - 1) / daysInMonth) * 100;
+                                              const width = (duration / daysInMonth) * 100;
+                                              const colorClass = b.status === 'Active' ? 'bg-green-500 shadow-green-100' : b.status === 'Completed' ? 'bg-slate-400' : 'bg-blue-500 shadow-blue-100';
+                                              return (
+                                                  <div key={b.id} className={`absolute top-3 bottom-3 rounded-md shadow-sm text-[10px] text-white flex items-center justify-center font-bold px-1 overflow-hidden whitespace-nowrap cursor-pointer z-0 hover:z-20 hover:scale-[1.02] transition-all border border-white/20 ${colorClass}`} style={{ left: `${leftPos}%`, width: `${width}%` }} onClick={(e) => { e.stopPropagation(); handleEdit(b); }}>{b.customerName}</div>
+                                              );
+                                          })}
+                                      </div>
+                                  </div>
+                              ))}
+                          </React.Fragment>
                       ))}
                   </div>
               </div>
@@ -724,7 +866,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
              <form onSubmit={handleCreateBooking} className="grid grid-cols-1 lg:grid-cols-[1.2fr_2fr] min-h-[600px]">
                 <div className="bg-slate-50/50 dark:bg-slate-900/30 p-6 border-r border-slate-100 dark:border-slate-700 space-y-6">
                     <section className="space-y-4">
-                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-[10px]"><ClockIcon size={16} className="text-indigo-600"/> Waktu & Unit</h4>
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-[10px]"><ClockIcon size={16} className="text-red-600"/> Waktu & Unit</h4>
                         <div className="space-y-3">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase">Mulai Sewa</label>
@@ -751,12 +893,44 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
                         {isRentToRent ? (
                             <div className="space-y-3 animate-fade-in">
-                                <div className="space-y-1">
-                                    <label className="text-[10px] font-black text-slate-400 uppercase">Vendor</label>
-                                    <select required className="w-full border rounded-lg p-2.5 text-sm font-bold bg-white dark:bg-slate-950" value={selectedVendorId} onChange={e => setSelectedVendorId(e.target.value)}>
-                                        <option value="">-- Pilih Vendor --</option>
-                                        {vendors.map(v => <option key={v.id} value={v.id}>{v.name}</option>)}
-                                    </select>
+                                <div className="space-y-1 relative" ref={vendorDropdownRef}>
+                                    <label className="text-[10px] font-black text-slate-400 uppercase">Database Vendor (Search)</label>
+                                    <div 
+                                        onClick={() => { setIsVendorDropdownOpen(!isVendorDropdownOpen); setVendorSearchQuery(''); }} 
+                                        className={`w-full border rounded-xl p-2.5 text-sm font-bold cursor-pointer flex justify-between items-center bg-white dark:bg-slate-950 dark:text-white dark:border-slate-700`}
+                                    >
+                                        {selectedVendorData ? (
+                                            <span>{selectedVendorData.name}</span>
+                                        ) : <span className="text-slate-400">Pilih vendor...</span>}
+                                        <ChevronDown size={16} className="text-slate-400" />
+                                    </div>
+                                    {isVendorDropdownOpen && (
+                                        <div className="absolute top-full z-[60] w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-60 flex flex-col overflow-hidden">
+                                            <div className="p-3 border-b dark:border-slate-800 flex items-center gap-2">
+                                                <Search size={14} className="text-slate-400" />
+                                                <input 
+                                                    autoFocus
+                                                    type="text" 
+                                                    placeholder="Ketik nama vendor..." 
+                                                    className="w-full text-xs outline-none bg-transparent dark:text-white"
+                                                    value={vendorSearchQuery}
+                                                    onChange={e => setVendorSearchQuery(e.target.value)}
+                                                    onClick={e => e.stopPropagation()}
+                                                />
+                                            </div>
+                                            <div className="overflow-y-auto custom-scrollbar flex-1">
+                                                {searchableVendors.length === 0 ? (
+                                                    <p className="p-4 text-center text-xs text-slate-400">Vendor tidak ditemukan.</p>
+                                                ) : (
+                                                    searchableVendors.map(v => (
+                                                        <div key={v.id} onClick={() => { setSelectedVendorId(v.id); setIsVendorDropdownOpen(false); }} className={`p-3 border-b dark:border-slate-800 last:border-0 hover:bg-red-50 dark:hover:bg-red-900/30 cursor-pointer text-xs font-bold text-slate-800 dark:text-white`}>
+                                                            {v.name}
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase">Nama Mobil (External)</label>
@@ -772,9 +946,9 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                             </div>
                         ) : (
-                            <div className="relative" ref={dropdownRef}>
-                                <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Unit Armada</label>
-                                <div onClick={() => setIsCarDropdownOpen(!isCarDropdownOpen)} className={`w-full border rounded-xl p-3 cursor-pointer flex items-center justify-between transition-all dark:bg-slate-950 ${carError ? 'border-red-500 bg-red-50 ring-2 ring-red-100' : 'bg-white hover:border-indigo-400 shadow-sm dark:border-slate-700'}`}>
+                            <div className="relative" ref={carDropdownRef}>
+                                <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Unit Armada (Search)</label>
+                                <div onClick={() => { setIsCarDropdownOpen(!isCarDropdownOpen); setCarSearchQuery(''); }} className={`w-full border rounded-xl p-3 cursor-pointer flex items-center justify-between transition-all dark:bg-slate-950 ${carError ? 'border-red-500 bg-red-50 ring-2 ring-red-100' : 'bg-white hover:border-red-400 shadow-sm dark:border-slate-700'}`}>
                                     {selectedCarData ? (
                                         <div className="flex items-center gap-3 text-slate-800 dark:text-white">
                                             <img src={selectedCarData.image} className="w-10 h-7 object-cover rounded shadow-sm" />
@@ -784,17 +958,35 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                     <ChevronDown size={18} className="text-slate-400"/>
                                 </div>
                                 {isCarDropdownOpen && (
-                                    <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-64 overflow-y-auto">
-                                        {cars.map(car => {
-                                            const isAvailable = (!startDate || !endDate) ? true : checkAvailability(bookings, car.id, new Date(`${startDate}T${startTime}`), new Date(`${endDate}T${endTime}`), 'car', editingBookingId || undefined);
-                                            return (
-                                                <div key={car.id} onClick={() => isAvailable && (setSelectedCarId(car.id), setIsCarDropdownOpen(false))} className={`p-3 border-b dark:border-slate-800 last:border-0 flex items-center gap-4 transition-colors ${!isAvailable ? 'bg-slate-100 dark:bg-slate-800 opacity-40 cursor-not-allowed' : 'hover:bg-indigo-50 dark:hover:bg-indigo-900/30 cursor-pointer'}`}>
-                                                    <img src={car.image} className="w-12 h-8 object-cover rounded shadow-sm" />
-                                                    <div className="flex-1"><p className="font-bold text-xs text-slate-800 dark:text-white">{car.name}</p><p className="text-[9px] text-slate-500 dark:text-slate-400">{car.plate}</p></div>
-                                                    {!isAvailable && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-black uppercase">Bentrok</span>}
-                                                </div>
-                                            );
-                                        })}
+                                    <div className="absolute top-full z-[60] w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-80 flex flex-col overflow-hidden">
+                                        <div className="p-3 border-b dark:border-slate-800 flex items-center gap-2">
+                                            <Search size={14} className="text-slate-400" />
+                                            <input 
+                                                autoFocus
+                                                type="text" 
+                                                placeholder="Ketik nama mobil/nopol..." 
+                                                className="w-full text-xs outline-none bg-transparent dark:text-white"
+                                                value={carSearchQuery}
+                                                onChange={e => setCarSearchQuery(e.target.value)}
+                                                onClick={e => e.stopPropagation()}
+                                            />
+                                        </div>
+                                        <div className="overflow-y-auto custom-scrollbar flex-1">
+                                            {searchableCars.length === 0 ? (
+                                                <p className="p-4 text-center text-xs text-slate-400">Unit tidak ditemukan.</p>
+                                            ) : (
+                                                searchableCars.map(car => {
+                                                    const isAvailable = (!startDate || !endDate) ? true : checkAvailability(bookings, car.id, new Date(`${startDate}T${startTime}`), new Date(`${endDate}T${endTime}`), 'car', editingBookingId || undefined);
+                                                    return (
+                                                        <div key={car.id} onClick={() => isAvailable && (setSelectedCarId(car.id), setIsCarDropdownOpen(false))} className={`p-3 border-b dark:border-slate-800 last:border-0 flex items-center gap-4 transition-colors ${!isAvailable ? 'bg-slate-100 dark:bg-slate-800 opacity-40 cursor-not-allowed' : 'hover:bg-red-50 dark:hover:bg-red-900/30 cursor-pointer'}`}>
+                                                            <img src={car.image} className="w-12 h-8 object-cover rounded shadow-sm" />
+                                                            <div className="flex-1"><p className="font-bold text-xs text-slate-800 dark:text-white">{car.name}</p><p className="text-[9px] text-slate-500 dark:text-slate-400">{car.plate}</p></div>
+                                                            {!isAvailable && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-black uppercase">Bentrok</span>}
+                                                        </div>
+                                                    );
+                                                })
+                                            )}
+                                        </div>
                                     </div>
                                 )}
                                 {carError && conflictingBooking && (
@@ -807,22 +999,65 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         )}
                     </section>
                     <section className="space-y-4 pt-4 border-t dark:border-slate-700">
-                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 uppercase tracking-widest text-[10px]"><UserIcon size={16} className="text-indigo-600"/> Supir</h4>
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 uppercase tracking-widest text-[10px]"><UserIcon size={16} className="text-red-600"/> Supir</h4>
                         <div className="bg-white dark:bg-slate-900 p-4 rounded-xl border border-slate-100 dark:border-slate-700 shadow-sm space-y-4">
                              <label className="flex items-center gap-3 cursor-pointer">
-                                <input type="checkbox" className="w-5 h-5 text-indigo-600 rounded-md border-slate-300" checked={useDriver} onChange={e => setUseDriver(e.target.checked)} />
+                                <input type="checkbox" className="w-5 h-5 text-red-600 rounded-md border-slate-300" checked={useDriver} onChange={e => setUseDriver(e.target.checked)} />
                                 <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Pakai Jasa Driver</span>
                              </label>
                              {useDriver && (
                                 <div className="space-y-3 animate-fade-in">
-                                    <select required className="w-full border rounded-lg p-2.5 text-sm font-bold bg-slate-50 dark:bg-slate-950 dark:text-white" value={selectedDriverId} onChange={e => setSelectedDriverId(e.target.value)}>
-                                        <option value="">-- Pilih Driver --</option>
-                                        {drivers.map(d => {
-                                             const isAvail = (!startDate || !endDate) ? true : checkAvailability(bookings, d.id, new Date(`${startDate}T${startTime}`), new Date(`${endDate}T${endTime}`), 'driver', editingBookingId || undefined);
-                                             const carSalary = selectedCarData?.driverSalary || 0;
-                                             return <option key={d.id} value={d.id} disabled={!isAvail}>{d.name} {!isAvail ? '(Sibuk)' : `(Gaji: Rp ${carSalary.toLocaleString()}/hr)`}</option>
-                                        })}
-                                    </select>
+                                    <div className="relative" ref={driverDropdownRef}>
+                                        <label className="text-[10px] font-black text-slate-400 uppercase mb-1 block">Data Driver (Search)</label>
+                                        <div 
+                                            onClick={() => { setIsDriverDropdownOpen(!isDriverDropdownOpen); setDriverSearchQuery(''); }} 
+                                            className={`w-full border rounded-xl p-2.5 text-sm font-bold cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-950 dark:text-white dark:border-slate-700`}
+                                        >
+                                            {selectedDriverData ? (
+                                                <div className="flex items-center gap-2">
+                                                    <img src={selectedDriverData.image} className="w-5 h-5 rounded-full object-cover" />
+                                                    <span>{selectedDriverData.name}</span>
+                                                </div>
+                                            ) : <span className="text-slate-400">Pilih driver...</span>}
+                                            <ChevronDown size={16} className="text-slate-400" />
+                                        </div>
+                                        {isDriverDropdownOpen && (
+                                            <div className="absolute bottom-full z-[60] w-full mb-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-60 flex flex-col overflow-hidden">
+                                                <div className="p-3 border-b dark:border-slate-800 flex items-center gap-2">
+                                                    <Search size={14} className="text-slate-400" />
+                                                    <input 
+                                                        autoFocus
+                                                        type="text" 
+                                                        placeholder="Ketik nama/phone..." 
+                                                        className="w-full text-xs outline-none bg-transparent dark:text-white"
+                                                        value={driverSearchQuery}
+                                                        onChange={e => setDriverSearchQuery(e.target.value)}
+                                                        onClick={e => e.stopPropagation()}
+                                                    />
+                                                </div>
+                                                <div className="overflow-y-auto custom-scrollbar flex-1">
+                                                    {searchableDrivers.length === 0 ? (
+                                                        <p className="p-4 text-center text-xs text-slate-400">Driver tidak ditemukan.</p>
+                                                    ) : (
+                                                        searchableDrivers.map(d => {
+                                                            const isAvail = (!startDate || !endDate) ? true : checkAvailability(bookings, d.id, new Date(`${startDate}T${startTime}`), new Date(`${endDate}T${endTime}`), 'driver', editingBookingId || undefined);
+                                                            const carSalary = selectedCarData?.driverSalary || 0;
+                                                            return (
+                                                                <div key={d.id} onClick={() => isAvail && (setSelectedDriverId(d.id), setIsDriverDropdownOpen(false))} className={`p-3 border-b dark:border-slate-800 last:border-0 flex items-center gap-3 transition-colors ${!isAvail ? 'opacity-40 bg-slate-100 dark:bg-slate-800 cursor-not-allowed' : 'hover:bg-red-50 dark:hover:bg-red-900/30 cursor-pointer'}`}>
+                                                                    <img src={d.image} className="w-8 h-8 rounded-full object-cover" />
+                                                                    <div className="flex-1">
+                                                                        <p className="font-bold text-xs text-slate-800 dark:text-white">{d.name}</p>
+                                                                        <p className="text-[10px] text-slate-500">Salary: Rp {carSalary.toLocaleString()}/hr</p>
+                                                                    </div>
+                                                                    {!isAvail && <span className="text-[8px] bg-red-100 text-red-600 px-1.5 py-0.5 rounded-full font-black uppercase">Sibuk</span>}
+                                                                </div>
+                                                            );
+                                                        })
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
                                     <textarea className="w-full border rounded-lg p-3 text-xs dark:bg-slate-950 dark:text-white" rows={2} placeholder="Catatan driver..." value={driverNote} onChange={e => setDriverNote(e.target.value)} />
                                 </div>
                              )}
@@ -831,14 +1066,53 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                 </div>
                 <div className="p-8 space-y-8 overflow-y-auto custom-scrollbar">
                     <section className="space-y-5">
-                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><UserIcon size={18} className="text-indigo-600"/> 1. Data Pelanggan</h4>
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><UserIcon size={18} className="text-red-600"/> 1. Data Pelanggan</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-1">
-                                <label className="text-[10px] font-black text-slate-400 uppercase">Database Pelanggan</label>
-                                <select className="w-full border rounded-xl p-2.5 text-sm bg-slate-50 dark:bg-slate-950 font-bold dark:text-white" value={selectedCustomerId} onChange={e => setSelectedCustomerId(e.target.value)}>
-                                    <option value="">-- Pelanggan Baru --</option>
-                                    {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-                                </select>
+                            <div className="space-y-1 relative" ref={customerDropdownRef}>
+                                <label className="text-[10px] font-black text-slate-400 uppercase">Cari Database Pelanggan</label>
+                                <div 
+                                    onClick={() => { setIsCustomerDropdownOpen(!isCustomerDropdownOpen); setCustomerSearchQuery(''); }} 
+                                    className={`w-full border rounded-xl p-2.5 text-sm font-bold cursor-pointer flex justify-between items-center bg-slate-50 dark:bg-slate-950 dark:text-white dark:border-slate-700`}
+                                >
+                                    {selectedCustomerData ? (
+                                        <span>{selectedCustomerData.name}</span>
+                                    ) : <span className="text-slate-400">Pilih pelanggan lama...</span>}
+                                    <ChevronDown size={16} className="text-slate-400" />
+                                </div>
+                                {isCustomerDropdownOpen && (
+                                    <div className="absolute z-50 w-full mt-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl shadow-2xl max-h-80 flex flex-col overflow-hidden">
+                                        <div className="p-3 border-b dark:border-slate-800 flex items-center gap-2">
+                                            <Search size={14} className="text-slate-400" />
+                                            <input 
+                                                autoFocus
+                                                type="text" 
+                                                placeholder="Ketik nama/no HP..." 
+                                                className="w-full text-xs outline-none bg-transparent dark:text-white"
+                                                value={customerSearchQuery}
+                                                onChange={e => setCustomerSearchQuery(e.target.value)}
+                                                onClick={e => e.stopPropagation()}
+                                            />
+                                        </div>
+                                        <div className="overflow-y-auto custom-scrollbar flex-1">
+                                            <div 
+                                                onClick={() => { setSelectedCustomerId(''); setIsCustomerDropdownOpen(false); setCustomerName(''); setCustomerPhone(''); }} 
+                                                className="p-3 border-b dark:border-slate-800 last:border-0 hover:bg-red-50 dark:hover:bg-red-900/30 cursor-pointer text-xs font-bold text-red-600"
+                                            >
+                                                -- Pelanggan Baru --
+                                            </div>
+                                            {searchableCustomers.length === 0 ? (
+                                                <p className="p-4 text-center text-xs text-slate-400">Tidak ditemukan.</p>
+                                            ) : (
+                                                searchableCustomers.map(cust => (
+                                                    <div key={cust.id} onClick={() => { setSelectedCustomerId(cust.id); setIsCustomerDropdownOpen(false); }} className={`p-3 border-b dark:border-slate-800 last:border-0 hover:bg-red-50 dark:hover:bg-red-900/30 cursor-pointer flex flex-col gap-0.5`}>
+                                                        <p className="font-bold text-xs text-slate-800 dark:text-white">{cust.name}</p>
+                                                        <p className="text-[10px] text-slate-500">{cust.phone}</p>
+                                                    </div>
+                                                ))
+                                            )}
+                                        </div>
+                                    </div>
+                                )}
                             </div>
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase">Nama Lengkap</label>
@@ -851,18 +1125,18 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase">Paket Sewa</label>
                                 <select className="w-full border rounded-xl p-2.5 text-sm font-bold dark:bg-slate-950 dark:text-white" value={packageType} onChange={e => setPackageType(e.target.value)}>
-                                    {settings.rentalPackages.map((p: string) => <option key={p} value={p}>{p}</option>)}
+                                    {settings?.rentalPackages?.map((p: string) => <option key={p} value={p}>{p}</option>)}
                                 </select>
                             </div>
                         </div>
                     </section>
                     <section className="space-y-5">
-                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Zap size={18} className="text-indigo-600"/> 2. Rincian & Biaya</h4>
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Zap size={18} className="text-red-600"/> 2. Rincian & Biaya</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                             <div className="space-y-4">
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase">Harga Unit / Hari</label>
-                                    <input type="number" className="w-full border rounded-xl p-2.5 text-sm font-black text-indigo-700 bg-indigo-50/30 dark:bg-indigo-900/10" value={customBasePrice} onChange={e => setCustomBasePrice(Number(e.target.value))} />
+                                    <input type="number" className="w-full border rounded-xl p-2.5 text-sm font-black text-red-700 bg-red-50/30 dark:bg-red-900/10" value={customBasePrice} onChange={e => setCustomBasePrice(Number(e.target.value))} />
                                 </div>
                                 <div className="space-y-1">
                                     <label className="text-[10px] font-black text-slate-400 uppercase">Biaya Antar</label>
@@ -874,7 +1148,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                             </div>
                             <div className="bg-slate-900 dark:bg-slate-950 rounded-2xl p-6 text-white space-y-3 shadow-2xl">
-                                <h5 className="font-black text-[10px] uppercase tracking-widest text-indigo-400">Ringkasan Biaya</h5>
+                                <h5 className="font-black text-[10px] uppercase tracking-widest text-red-400">Ringkasan Biaya</h5>
                                 <div className="space-y-1 text-xs font-medium border-b border-white/10 pb-3">
                                     <div className="flex justify-between text-slate-400"><span>Sewa Unit ({durationDays} hr)</span><span>Rp {pricing.basePrice.toLocaleString()}</span></div>
                                     {pricing.driverFee > 0 && <div className="flex justify-between text-slate-400"><span>Driver ({durationDays} hr)</span><span>Rp {pricing.driverFee.toLocaleString()}</span></div>}
@@ -884,12 +1158,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                     {extraCost > 0 && <div className="flex justify-between text-orange-300"><span>Biaya Extra</span><span>Rp {extraCost.toLocaleString()}</span></div>}
                                     {discount > 0 && <div className="flex justify-between text-green-400"><span>Diskon</span><span>- Rp {discount.toLocaleString()}</span></div>}
                                 </div>
-                                <div className="flex justify-between font-black text-lg text-indigo-300"><span>TOTAL</span><span>Rp {pricing.totalPrice.toLocaleString()}</span></div>
+                                <div className="flex justify-between font-black text-lg text-red-300"><span>TOTAL</span><span>Rp {pricing.totalPrice.toLocaleString()}</span></div>
                             </div>
                         </div>
                     </section>
                     <section className="space-y-5">
-                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Wallet size={18} className="text-indigo-600"/> 3. Pembayaran</h4>
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Wallet size={18} className="text-red-600"/> 3. Pembayaran</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase">DP / Pelunasan (Masuk)</label>
@@ -900,14 +1174,54 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                             </div>
                             <div className="bg-slate-50 dark:bg-slate-900 p-5 rounded-2xl border border-slate-100 dark:border-slate-700 text-center">
                                 <p className="text-[10px] font-black text-slate-400 uppercase mb-2">Status Nota</p>
-                                <span className={`text-xl font-black uppercase tracking-tighter px-6 py-2 rounded-full shadow-sm ${parseInt(amountPaid) >= pricing.totalPrice && pricing.totalPrice > 0 ? 'bg-green-600 text-white' : parseInt(amountPaid) > 0 ? 'bg-orange-500 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}`}>
+                                <span className={`text-xl font-black uppercase tracking-tighter px-6 py-2 rounded-full shadow-sm ${parseInt(amountPaid) >= pricing.totalPrice && pricing.totalPrice > 0 ? 'bg-green-600 text-white' : parseInt(amountPaid) > 0 ? 'bg-orange-50 text-white' : 'bg-slate-200 dark:bg-slate-800 text-slate-500'}`}>
                                     {parseInt(amountPaid) >= pricing.totalPrice && pricing.totalPrice > 0 ? 'LUNAS' : parseInt(amountPaid) > 0 ? 'D P' : 'BELUM BAYAR'}
                                 </span>
                             </div>
                         </div>
                     </section>
+
+                    <section className="space-y-5">
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><History size={18} className="text-red-600"/> 4. Pengembalian & Biaya Tambahan</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tanggal Kembali (Aktual)</label>
+                                <div className="flex gap-1">
+                                    <input type="date" className="w-full border rounded-xl p-2.5 text-sm font-bold dark:bg-slate-950 dark:text-white border-slate-200 dark:border-slate-700" value={actualReturnDate} onChange={e => setActualReturnDate(e.target.value)} />
+                                    <input type="time" className="w-24 border rounded-xl p-2.5 text-sm font-bold dark:bg-slate-950 dark:text-white border-slate-200 dark:border-slate-700" value={actualReturnTime} onChange={e => setActualReturnTime(e.target.value)} />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Denda Overtime (Otomatis)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-sm font-bold text-slate-400">Rp</span>
+                                    <input 
+                                        type="number" 
+                                        className="w-full border rounded-xl p-2.5 pl-10 text-sm font-black text-red-600 bg-red-50 dark:bg-red-900/10 border-red-100 dark:border-red-900/30" 
+                                        value={overtimeFee} 
+                                        onChange={e => setOvertimeFee(Number(e.target.value))}
+                                    />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Biaya Tambahan (BBM/Klaim)</label>
+                                <div className="relative">
+                                    <span className="absolute left-3 top-2.5 text-sm font-bold text-slate-400">Rp</span>
+                                    <input type="number" className="w-full border rounded-xl p-2.5 pl-10 text-sm font-bold dark:bg-slate-950 dark:text-white border-slate-200 dark:border-slate-700" value={extraCost} onChange={e => setExtraCost(Number(e.target.value))} />
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Keterangan Tambahan</label>
+                                <input type="text" className="w-full border rounded-xl p-2.5 text-sm font-bold dark:bg-slate-950 dark:text-white border-slate-200 dark:border-slate-700" value={extraCostDescription} onChange={e => setExtraCostDescription(e.target.value)} placeholder="Misal: Kurang BBM / Lecet / Dll" />
+                            </div>
+                        </div>
+                        <p className="text-[10px] text-slate-400 italic">
+                            *Overtime dihitung otomatis: {settings?.overtimeType === 'Percentage' ? `${settings?.overtimeValue}% dari harga harian` : `Rp ${settings?.overtimeValue?.toLocaleString('id-ID')}`} per jam keterlambatan.
+                        </p>
+                    </section>
+
                     <div className="pt-6 border-t dark:border-slate-700">
-                        <button type="submit" disabled={!isRentToRent && (!!carError || !selectedCarId)} className="w-full bg-indigo-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest hover:bg-indigo-700 shadow-2xl active:scale-95 flex items-center justify-center gap-3 transition-all">
+                        <button type="submit" disabled={!isRentToRent && (!!carError || !selectedCarId)} className="w-full bg-red-600 text-white py-5 rounded-3xl font-black uppercase tracking-widest hover:bg-red-700 shadow-2xl active:scale-95 flex items-center justify-center gap-3 transition-all">
                             <Plus size={24}/> Simpan & Kunci Jadwal
                         </button>
                     </div>
@@ -918,14 +1232,13 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
       {activeTab === 'list' && (
         <div className="space-y-6">
-            {/* SEARCH & DATE FILTERS */}
             <div className="p-5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl flex flex-col md:flex-row gap-4 items-center shadow-sm">
                 <div className="relative flex-1 w-full">
                     <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
                     <input 
                         type="text" 
                         placeholder="Cari nama tamu atau unit..." 
-                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white"
+                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 dark:bg-slate-900 border dark:border-slate-700 rounded-xl text-sm font-medium focus:ring-2 focus:ring-red-500 outline-none dark:text-white"
                         value={searchTerm}
                         onChange={e => setSearchTerm(e.target.value)}
                     />
@@ -937,10 +1250,9 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                 </div>
             </div>
 
-            {/* STATUS TAB NAVIGATION */}
             <div className="flex items-center gap-2 overflow-x-auto pb-2 no-scrollbar">
                 {[
-                    { id: 'All', label: 'Semua', icon: Inbox, color: 'text-indigo-600' },
+                    { id: 'All', label: 'Semua', icon: Inbox, color: 'text-red-600' },
                     { id: BookingStatus.BOOKED, label: 'Booked', icon: ClockIcon, color: 'text-orange-500' },
                     { id: BookingStatus.ACTIVE, label: 'Aktif', icon: Zap, color: 'text-green-600' },
                     { id: BookingStatus.COMPLETED, label: 'Selesai', icon: CheckCircle, color: 'text-blue-600' },
@@ -951,8 +1263,8 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         onClick={() => setFilterStatus(tab.id)}
                         className={`flex items-center gap-2 px-5 py-2.5 rounded-full text-sm font-black uppercase tracking-widest transition-all whitespace-nowrap border-2 ${
                             filterStatus === tab.id 
-                                ? 'bg-indigo-600 border-indigo-600 text-white shadow-lg shadow-indigo-100' 
-                                : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-indigo-300 dark:hover:border-indigo-800'
+                                ? 'bg-red-600 border-red-600 text-white shadow-lg shadow-red-100' 
+                                : 'bg-white dark:bg-slate-800 border-slate-100 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-red-300 dark:hover:border-red-800'
                         }`}
                     >
                         <tab.icon size={16} />
@@ -964,13 +1276,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                 ))}
             </div>
 
-            {/* BOOKING CARDS LIST */}
             <div className="grid grid-cols-1 gap-4">
                 {filteredBookingsList.length === 0 ? (
                     <div className="text-center py-20 bg-slate-50 dark:bg-slate-800/50 rounded-3xl border-2 border-dashed border-slate-200 dark:border-slate-700 flex flex-col items-center">
                         <Inbox size={48} className="text-slate-300 dark:text-slate-600 mb-4" />
                         <p className="text-slate-500 dark:text-slate-400 font-bold uppercase tracking-widest text-sm">Tidak ada transaksi ditemukan</p>
-                        <button onClick={() => { setSearchTerm(''); setFilterStatus('All'); setFilterStartDate(''); setFilterEndDate(''); }} className="mt-4 text-indigo-600 font-black text-xs hover:underline uppercase">Reset Filter</button>
+                        <button onClick={() => { setSearchTerm(''); setFilterStatus('All'); setFilterStartDate(''); setFilterEndDate(''); }} className="mt-4 text-red-600 font-black text-xs hover:underline uppercase">Reset Filter</button>
                     </div>
                 ) : (
                     filteredBookingsList.map(b => {
@@ -993,7 +1304,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                                 {b.isRentToRent && <span className="bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400 text-[9px] font-bold px-2 py-0.5 rounded border border-yellow-200 dark:border-yellow-900/50 uppercase">Unit Vendor</span>}
                                             </div>
                                             <div className="flex flex-wrap gap-4 text-xs font-bold text-slate-500 dark:text-slate-400">
-                                                <span className="flex items-center gap-1.5"><Calendar size={14} className="text-indigo-600"/> {new Date(b.startDate).toLocaleDateString('id-ID')}</span>
+                                                <span className="flex items-center gap-1.5"><Calendar size={14} className="text-red-600"/> {new Date(b.startDate).toLocaleDateString('id-ID')}</span>
                                                 <span className="flex items-center gap-1.5 text-orange-600 bg-orange-50 dark:bg-orange-900/10 px-1.5 py-0.5 rounded-md"><ClockIcon size={14}/> {diffDays} HR</span>
                                                 <span className="flex items-center gap-1.5 text-red-600 uppercase"><UserIcon size={14}/> {b.customerName}</span>
                                                 <span className={`flex items-center gap-1.5 px-2 py-0.5 rounded-full ${isDue ? 'bg-red-50 text-red-700 dark:bg-red-900/20' : 'bg-green-50 text-green-700 dark:bg-green-900/20'}`}>
@@ -1004,7 +1315,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                         <div className="hidden lg:block text-right">
                                             <span className={`text-[10px] font-black px-4 py-1.5 rounded-full uppercase tracking-widest ${
                                                 b.status === 'Active' ? 'bg-green-600 text-white' : 
-                                                b.status === 'Booked' ? 'bg-orange-500 text-white' : 
+                                                b.status === 'Booked' ? 'bg-orange-50 text-white' : 
                                                 b.status === 'Completed' ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400' :
                                                 'bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400'
                                             }`}>{b.status}</span>
@@ -1013,11 +1324,11 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                 </div>
                                 <div className="flex flex-wrap gap-2 w-full justify-start border-t dark:border-slate-700 pt-4">
                                     {isDue && b.status !== BookingStatus.CANCELLED && <button onClick={() => handleLunasiAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-green-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-green-700 transition-colors active:scale-95 shadow-lg shadow-green-100 dark:shadow-none"><CheckCircle size={16}/> Lunasi</button>}
-                                    {b.status === BookingStatus.ACTIVE && <button onClick={() => handleSelesaiAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-indigo-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-indigo-700 transition-colors active:scale-95 shadow-lg shadow-indigo-100 dark:shadow-none"><History size={16}/> Selesai</button>}
+                                    {b.status === BookingStatus.ACTIVE && <button onClick={() => handleSelesaiAction(b)} className="flex items-center gap-1.5 px-4 py-2 bg-red-600 text-white rounded-xl text-xs font-black uppercase tracking-widest hover:bg-red-700 transition-colors active:scale-95 shadow-lg shadow-red-100/30 dark:shadow-none"><History size={16}/> Selesai</button>}
                                     <div className="h-8 w-px bg-slate-100 dark:bg-slate-700 mx-2 hidden md:block"></div>
                                     <button onClick={() => { const c = cars.find(car=>car.id===b.carId); if(c || b.isRentToRent) window.open(generateWhatsAppLink(b, c || {name: b.externalCarName || '', plate: b.externalCarPlate || ''} as any), '_blank') }} className="px-3 py-2 bg-green-50 dark:bg-green-900/10 text-green-600 dark:text-green-400 rounded-xl hover:bg-green-100 border border-green-100 dark:border-green-900/30 flex items-center gap-2 text-xs font-bold transition-colors"><MessageCircle size={16}/> Kirim WA</button>
                                     <button onClick={() => { const c = cars.find(car=>car.id===b.carId); if(c || b.isRentToRent) generateInvoicePDF(b, c || {name: b.externalCarName || '', plate: b.externalCarPlate || ''} as any) }} className="px-3 py-2 bg-blue-50 dark:bg-blue-900/10 text-blue-600 dark:text-blue-400 rounded-xl hover:bg-blue-100 border border-blue-100 dark:border-blue-900/30 flex items-center gap-2 text-xs font-bold transition-colors"><Printer size={16}/> Nota</button>
-                                    <button onClick={() => handleEdit(b)} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-indigo-50 dark:hover:bg-slate-600 border border-slate-100 dark:border-slate-600 transition-colors" title="Edit Data"><Edit2 size={20}/></button>
+                                    <button onClick={() => handleEdit(b)} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-xl hover:bg-red-50 dark:hover:bg-slate-600 border border-slate-100 dark:border-slate-600 transition-colors" title="Edit Data"><Edit2 size={20}/></button>
                                     {b.status !== BookingStatus.CANCELLED && <button onClick={() => openChecklistModal(b)} className={`p-2.5 rounded-xl border transition-colors ${b.checklist ? 'bg-green-600 text-white border-green-700 dark:border-green-800' : 'bg-yellow-50 dark:bg-yellow-900/10 text-yellow-600 dark:text-yellow-400 border-yellow-100 dark:border-yellow-900/30'}`} title="Checklist Kendaraan"><ClipboardCheck size={20}/></button>}
                                     {isSuperAdmin && <button onClick={() => handleDelete(b.id)} className="p-2.5 bg-slate-50 dark:bg-slate-700 text-slate-400 dark:text-slate-500 rounded-xl hover:bg-red-50 dark:hover:bg-red-900/30 hover:text-red-600 dark:hover:text-red-400 border border-slate-100 dark:border-slate-600 transition-all" title="Hapus Permanen"><Trash2 size={20}/></button>}
                                 </div>
@@ -1031,18 +1342,18 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       
       {isChecklistModalOpen && checklistBooking && (
           <div className="fixed inset-0 bg-slate-900/80 z-50 flex items-center justify-center p-4 backdrop-blur-md">
-             <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-4xl p-8 shadow-2xl max-h-[95vh] overflow-y-auto border-t-8 border-indigo-600 dark:border-indigo-800">
+             <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-4xl p-8 shadow-2xl max-h-[95vh] overflow-y-auto border-t-8 border-red-600 dark:border-red-800">
                  <div className="flex justify-between items-center mb-8 border-b dark:border-slate-700 pb-6">
-                     <div><h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">Checklist Serah Terima</h3><p className="text-slate-500 dark:text-slate-400 font-bold">ID Transaksi: <span className="font-mono text-indigo-600">#{checklistBooking.id.slice(0,8)}</span></p></div>
+                     <div><h3 className="text-2xl font-black text-slate-800 dark:text-white uppercase tracking-tighter">Checklist Serah Terima</h3><p className="text-slate-500 dark:text-slate-400 font-bold">ID Transaksi: <span className="font-mono text-red-600">#{checklistBooking.id.slice(0,8)}</span></p></div>
                      <button onClick={() => setIsChecklistModalOpen(false)} className="bg-slate-100 dark:bg-slate-700 p-2 rounded-full text-slate-400 hover:text-red-600 transition-colors"><X size={28} /></button>
                  </div>
                  <form onSubmit={saveChecklist} className="space-y-8">
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-10">
                         <div className="space-y-6">
-                            <h4 className="font-black text-slate-900 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-2 uppercase tracking-widest text-[10px]"><Gauge size={20} className="text-indigo-600" /> Indikator</h4>
+                            <h4 className="font-black text-slate-900 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-2 uppercase tracking-widest text-[10px]"><Gauge size={20} className="text-red-600" /> Indikator</h4>
                             <div className="grid grid-cols-2 gap-4">
-                                <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1">KM (Odometer)</label><input required type="number" className="w-full border-2 dark:border-slate-700 dark:bg-slate-950 dark:text-white rounded-xl p-3 text-lg font-black focus:border-indigo-500 outline-none" value={checkOdometer} onChange={e => setCheckOdometer(e.target.value)} /></div>
-                                <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Posisi BBM</label><select className="w-full border-2 dark:border-slate-700 dark:bg-slate-950 dark:text-white rounded-xl p-3 text-sm font-bold bg-white focus:border-indigo-500 outline-none" value={checkFuel} onChange={e => setCheckFuel(e.target.value)}><option value="Full">FULL</option><option value="3/4">3/4</option><option value="1/2">1/2</option><option value="1/4">1/4</option><option value="Empty">RESERVE</option></select></div>
+                                <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1">KM (Odometer)</label><input required type="number" className="w-full border-2 dark:border-slate-700 dark:bg-slate-950 dark:text-white rounded-xl p-3 text-lg font-black focus:border-red-500 outline-none" value={checkOdometer} onChange={e => setCheckOdometer(e.target.value)} /></div>
+                                <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Posisi BBM</label><select className="w-full border-2 dark:border-slate-700 dark:bg-slate-950 dark:text-white rounded-xl p-3 text-sm font-bold bg-white focus:border-red-500 outline-none" value={checkFuel} onChange={e => setCheckFuel(e.target.value)}><option value="Full">FULL</option><option value="3/4">3/4</option><option value="1/2">1/2</option><option value="1/4">1/4</option><option value="Empty">RESERVE</option></select></div>
                             </div>
                             <div>
                                 <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Foto Dashboard (Wajib)</label>
@@ -1053,7 +1364,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                             </div>
                         </div>
                         <div className="space-y-6">
-                            <h4 className="font-black text-slate-900 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-2 uppercase tracking-widest text-[10px]"><CarIcon size={20} className="text-indigo-600" /> Foto Fisik</h4>
+                            <h4 className="font-black text-slate-900 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-2 uppercase tracking-widest text-[10px]"><CarIcon size={20} className="text-red-600" /> Foto Fisik</h4>
                             <div className="grid grid-cols-2 gap-4">
                                 {['front', 'back', 'left', 'right'].map((k) => {
                                     const imageSrc = k === 'front' ? checkFrontImg : k === 'back' ? checkBackImg : k === 'left' ? checkLeftImg : checkRightImg;
@@ -1069,7 +1380,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                     </div>
                     <div className="pt-6 border-t dark:border-slate-700 flex justify-end gap-3">
                         <button type="button" onClick={() => setIsChecklistModalOpen(false)} className="px-8 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-300 rounded-xl font-black uppercase tracking-widest text-xs">Batal</button>
-                        <button type="submit" className="px-10 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-transform">Simpan & Aktifkan Sewa</button>
+                        <button type="submit" className="px-10 py-3 bg-red-600 text-white rounded-xl font-black uppercase tracking-widest text-xs shadow-xl active:scale-95 transition-transform">Simpan & Aktifkan Sewa</button>
                     </div>
                  </form>
              </div>

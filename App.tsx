@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 // @ts-ignore
 import { HashRouter as Router, Routes, Route, Link, useLocation, Navigate, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Car, CalendarRange, Users, Wallet, Menu, X, UserCog, CalendarClock, Settings, LogOut, MapPin, Receipt, PieChart, UserCircle, Loader2, RefreshCw, FileText, Palette, List, HelpCircle, Map, ChevronLeft, Calculator, Building, ReceiptText } from 'lucide-react';
+import { LayoutDashboard, Car, CalendarRange, Users, Wallet, RefreshCw, FileText, Palette, List, HelpCircle, Map, ChevronLeft, Calculator, Building, ReceiptText, UserCircle, UserCog, CalendarClock, Settings, LogOut, Receipt, PieChart } from 'lucide-react';
 import { initializeData, getStoredData, DEFAULT_SETTINGS } from './services/dataService';
 import { getCurrentUser, logout } from './services/authService';
 import { User, AppSettings } from './types';
@@ -16,6 +16,7 @@ import DriversPage from './pages/DriversPage';
 import VendorsPage from './pages/VendorsPage';
 import HighSeasonPage from './pages/HighSeasonPage';
 import SettingsPage from './pages/SettingsPage';
+import HelpPage from './pages/HelpPage';
 import LoginPage from './pages/LoginPage';
 import CustomersPage from './pages/CustomersPage';
 import ExpensesPage from './pages/ExpensesPage';
@@ -53,22 +54,18 @@ interface AppLayoutProps {
   onLogout: () => void;
 }
 
-// Layout Component to wrap protected routes
 const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
   const location = useLocation();
   const navigate = useNavigate();
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isProfileMenuOpen, setIsProfileMenuOpen] = useState(false);
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [isRefreshing, setIsRefreshing] = useState(false);
   
-  // Role Helpers
   const isSuperAdmin = user.role === 'superadmin';
   const isStaff = user.role === 'admin';
   const isDriver = user.role === 'driver';
   const isPartner = user.role === 'partner';
   
-  // Admin & SuperAdmin share most operational views
   const isOperational = isStaff || isSuperAdmin;
   const isHome = location.pathname === '/';
 
@@ -79,7 +76,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
 
   const handleRefresh = async () => {
       setIsRefreshing(true);
-      await initializeData(); // Pull fresh from Firebase
+      await initializeData();
       setIsRefreshing(false);
       window.location.reload(); 
   };
@@ -98,6 +95,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
           case '/collective-invoice': return 'Invoice Kolektif';
           case '/high-season': return 'High Season';
           case '/settings': return 'Pengaturan';
+          case '/help': return 'Pusat Bantuan';
           default: return settings.companyName;
       }
   };
@@ -124,7 +122,6 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
     <div className="min-h-screen bg-white dark:bg-slate-900 transition-colors duration-200">
       <ThemeEngine settings={settings} />
       
-      {/* --- DESKTOP SIDEBAR --- */}
       <aside className="hidden md:flex flex-col w-64 bg-white dark:bg-slate-800 border-r border-slate-200 dark:border-slate-700 fixed h-full z-20">
         <div className="p-6 border-b border-slate-100 dark:border-slate-700 flex items-center gap-3">
            <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center shadow-lg shadow-red-200 dark:shadow-none text-white">
@@ -165,13 +162,6 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                         <SidebarItem to="/statistics" icon={PieChart} label="Laporan & Statistik" />
                     </div>
                 </div>
-
-                <div className="mb-6">
-                    <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Sistem</h3>
-                    <div className="space-y-1">
-                        <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
-                    </div>
-                </div>
               </>
           )}
 
@@ -182,7 +172,6 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                     <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
                     <SidebarItem to="/expenses" icon={Wallet} label="Reimbursement" />
                     <SidebarItem to="/drivers" icon={UserCircle} label="Profil Saya" />
-                    <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
                 </div>
               </div>
           )}
@@ -194,10 +183,17 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                     <SidebarItem to="/" icon={LayoutDashboard} label="Dashboard" />
                     <SidebarItem to="/partners" icon={Wallet} label="Pendapatan" />
                     <SidebarItem to="/expenses" icon={List} label="Riwayat Setoran" />
-                    <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
                 </div>
               </div>
           )}
+
+          <div className="mb-6">
+              <h3 className="px-4 text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">Layanan</h3>
+              <div className="space-y-1">
+                  <SidebarItem to="/help" icon={HelpCircle} label="Pusat Bantuan" />
+                  <SidebarItem to="/settings" icon={Settings} label="Pengaturan" />
+              </div>
+          </div>
         </nav>
 
         <div className="p-4 border-t border-slate-100 dark:border-slate-700">
@@ -210,7 +206,6 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
         </div>
       </aside>
 
-      {/* --- MOBILE HEADER --- */}
       <div className="md:hidden fixed top-0 w-full bg-white dark:bg-slate-800 z-30 border-b border-slate-200 dark:border-slate-700 px-4 py-3 flex justify-between items-center pt-safe shadow-sm transition-all">
           <div className="flex items-center gap-2">
              {isHome ? (
@@ -243,6 +238,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                               <p className="text-xs text-slate-500 dark:text-slate-400 capitalize">{user.role === 'partner' ? 'Investor' : user.role}</p>
                           </div>
                           <Link to="/settings" className="block px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => setIsProfileMenuOpen(false)}>Pengaturan</Link>
+                          <Link to="/help" className="block px-4 py-2 text-sm text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700" onClick={() => setIsProfileMenuOpen(false)}>Bantuan</Link>
                           <button onClick={onLogout} className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20">Keluar</button>
                       </div>
                   )}
@@ -250,12 +246,10 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
           </div>
       </div>
 
-      {/* --- MAIN CONTENT AREA --- */}
       <main className="md:ml-64 p-4 md:p-8 pt-20 md:pt-8 pb-24 md:pb-8 min-h-screen">
         {children}
       </main>
 
-      {/* --- MOBILE BOTTOM NAV --- */}
       <nav className="md:hidden fixed bottom-0 w-full bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 z-30 pb-safe shadow-[0_-4px_6px_-1px_rgba(0,0,0,0.05)]">
         <div className="flex justify-between items-end px-2 pb-2 pt-1">
           
@@ -264,7 +258,6 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                 <BottomNavItem to="/booking" icon={CalendarRange} label="Booking" />
                 <BottomNavItem to="/fleet" icon={Car} label="Armada" />
                 
-                {/* CENTER HOME BUTTON */}
                 <div className="relative -top-5 mx-1 flex flex-col items-center justify-center">
                     <Link to="/" className="flex items-center justify-center w-16 h-16 bg-red-600 rounded-full shadow-lg border-4 border-slate-100 dark:border-slate-800 text-white hover:bg-red-700 transition-transform active:scale-95">
                         <LayoutDashboard size={28} strokeWidth={2} />
@@ -272,7 +265,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                 </div>
 
                 <BottomNavItem to="/expenses" icon={Wallet} label="Keuangan" />
-                <BottomNavItem to="/statistics" icon={PieChart} label="Statistik" />
+                <BottomNavItem to="/help" icon={HelpCircle} label="Bantuan" />
               </>
           ) : isDriver ? (
               <>
@@ -286,10 +279,9 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                 </div>
 
                 <BottomNavItem to="/drivers" icon={UserCircle} label="Profil" />
-                <BottomNavItem to="/settings" icon={Settings} label="Akun" />
+                <BottomNavItem to="/help" icon={HelpCircle} label="Bantuan" />
               </>
           ) : (
-              // Partner
               <>
                 <BottomNavItem to="/" icon={LayoutDashboard} label="Home" />
                 <BottomNavItem to="/partners" icon={Wallet} label="Pendapatan" />
@@ -301,7 +293,7 @@ const AppLayout = ({ children, user, onLogout }: AppLayoutProps) => {
                 </div>
 
                 <BottomNavItem to="/expenses" icon={List} label="Riwayat" />
-                <BottomNavItem to="/settings" icon={Settings} label="Akun" />
+                <BottomNavItem to="/help" icon={HelpCircle} label="Bantuan" />
               </>
           )}
         </div>
@@ -349,7 +341,6 @@ const App = () => {
         
         <Route path="/" element={user ? <AppLayout user={user} onLogout={handleLogout}><Dashboard /></AppLayout> : <Navigate to="/login" />} />
         
-        {/* Protected Routes based on Role */}
         <Route path="/booking" element={
             user && (user.role === 'admin' || user.role === 'superadmin') ? <AppLayout user={user} onLogout={handleLogout}><BookingPage currentUser={user}/></AppLayout> : <Navigate to="/" />
         } />
@@ -396,6 +387,10 @@ const App = () => {
         
         <Route path="/settings" element={
             user ? <AppLayout user={user} onLogout={handleLogout}><SettingsPage currentUser={user}/></AppLayout> : <Navigate to="/login" />
+        } />
+
+        <Route path="/help" element={
+            user ? <AppLayout user={user} onLogout={handleLogout}><HelpPage currentUser={user}/></AppLayout> : <Navigate to="/login" />
         } />
         
         <Route path="*" element={<Navigate to="/" />} />

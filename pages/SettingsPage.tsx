@@ -5,55 +5,26 @@ import { useLocation } from 'react-router-dom';
 import { AppSettings, User, Driver, Partner } from '../types';
 import { getStoredData, setStoredData, DEFAULT_SETTINGS, compressImage } from '../services/dataService';
 import { getUsers, saveUser, deleteUser } from '../services/authService';
-import { FileText, Trash2, List, UserCog, X, MessageCircle, Image as ImageIcon, HelpCircle, Palette, Moon, Sun, ChevronDown, ChevronUp, BookOpen, Link as LinkIcon, Camera, Zap, Building, Wallet, ReceiptText, ShieldCheck, Smartphone, Share, PlusSquare, ArrowUp } from 'lucide-react';
+import { FileText, List, X, MessageCircle, Palette, Moon, Sun, Camera, Link as LinkIcon } from 'lucide-react';
 import { Logo } from '../components/Logo';
 
 interface Props {
     currentUser: User;
 }
 
-// Helper Component for FAQ Accordion
-const FaqItem = ({ question, answer }: { question: string, answer: React.ReactNode }) => {
-    const [isOpen, setIsOpen] = useState(false);
-    return (
-        <div className="border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800 shadow-sm">
-            <button 
-                onClick={() => setIsOpen(!isOpen)}
-                className="w-full flex justify-between items-center p-4 text-left hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors"
-            >
-                <span className="font-bold text-slate-700 dark:text-slate-200 text-sm flex items-center gap-3">
-                    <HelpCircle size={18} className="text-indigo-600 flex-shrink-0"/> {question}
-                </span>
-                {isOpen ? <ChevronUp size={18} className="text-slate-400"/> : <ChevronDown size={18} className="text-slate-400"/>}
-            </button>
-            {isOpen && (
-                <div className="p-4 pt-0 text-sm text-slate-600 dark:text-slate-400 leading-relaxed border-t border-slate-100 dark:border-slate-700 bg-slate-50/30 dark:bg-slate-800/30">
-                    <div className="pt-3">{answer}</div>
-                </div>
-            )}
-        </div>
-    );
-};
-
 const SettingsPage: React.FC<Props> = ({ currentUser }) => {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const isSuperAdmin = currentUser.role === 'superadmin';
   
-  // Initialize tab from URL param or default
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || (isSuperAdmin ? 'general' : 'help'));
-  
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'general');
   const [settings, setSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   const [users, setUsers] = useState<User[]>([]);
-  
-  // Reference Data for Linking
   const [driversList, setDriversList] = useState<Driver[]>([]);
   const [partnersList, setPartnersList] = useState<Partner[]>([]);
-
   const [isSaved, setIsSaved] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   
-  // Users Form
   const [editingUserId, setEditingUserId] = useState<string | null>(null);
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -62,12 +33,8 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
   const [fullName, setFullName] = useState('');
   const [role, setRole] = useState('admin');
   const [userImage, setUserImage] = useState<string | null>(null);
-  
-  // User Linking State
   const [linkedDriverId, setLinkedDriverId] = useState('');
   const [linkedPartnerId, setLinkedPartnerId] = useState('');
-  
-  // Master Data State
   const [newCategory, setNewCategory] = useState('');
   const [newPackage, setNewPackage] = useState('');
 
@@ -78,12 +45,9 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
     setPartnersList(getStoredData<Partner[]>('partners', []));
   }, []);
 
-  // Sync tab with URL param changes
   useEffect(() => {
       const tabParam = searchParams.get('tab');
-      if (tabParam) {
-          setActiveTab(tabParam);
-      }
+      if (tabParam) setActiveTab(tabParam);
   }, [location.search]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
@@ -109,7 +73,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
       setIsSaved(false);
   };
 
-  // User Management
   const handleUserImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -117,11 +80,8 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
       try {
         const compressed = await compressImage(file);
         setUserImage(compressed);
-      } catch (e) {
-        alert("Gagal memproses gambar.");
-      } finally {
-        setIsUploading(false);
-      }
+      } catch (e) { alert("Gagal memproses gambar."); }
+      finally { setIsUploading(false); }
     }
   };
 
@@ -132,11 +92,8 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
           try {
              const compressed = await compressImage(file);
              setSettings(prev => ({ ...prev, logoUrl: compressed }));
-          } catch(e) {
-              alert("Gagal upload logo.");
-          } finally {
-              setIsUploading(false);
-          }
+          } catch(e) { alert("Gagal upload logo."); }
+          finally { setIsUploading(false); }
       }
   };
 
@@ -176,7 +133,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
 
   const handleDeleteUser = (id: string) => {
       if (id === currentUser.id) return alert("Tidak bisa menghapus akun sendiri!");
-      if (confirm("Konfirmasi Persetujuan: Apakah Anda yakin ingin menghapus user ini secara permanen?")) {
+      if (confirm("Apakah Anda yakin ingin menghapus user ini?")) {
           deleteUser(id);
           setUsers(getUsers());
           if (editingUserId === id) resetUserForm();
@@ -216,175 +173,27 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
     <div className="space-y-6">
       <div className="flex justify-between items-center">
         <div>
-          <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Pengaturan & Bantuan</h2>
-          <p className="text-slate-500 dark:text-slate-400">Konfigurasi sistem dan panduan penggunaan aplikasi.</p>
+          <h2 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Pengaturan Sistem</h2>
+          <p className="text-slate-500 dark:text-slate-400">Konfigurasi operasional dan akun pengguna.</p>
         </div>
         {isSaved && <span className="bg-green-100 text-green-700 px-4 py-2 rounded-lg font-medium animate-pulse">Tersimpan!</span>}
       </div>
 
       <div className="flex gap-2 overflow-x-auto pb-2 no-scrollbar">
-          {isSuperAdmin && (
+          {isSuperAdmin ? (
               <>
                 <button onClick={() => setActiveTab('general')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'general' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Umum & Invoice</button>
                 <button onClick={() => setActiveTab('appearance')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'appearance' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Tampilan</button>
                 <button onClick={() => setActiveTab('master')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'master' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Kategori & Paket</button>
                 <button onClick={() => setActiveTab('users')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'users' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Manajemen User</button>
               </>
+          ) : (
+              <button className="bg-indigo-600 text-white px-4 py-2 rounded-lg font-medium">Profil Saya</button>
           )}
-          <button onClick={() => setActiveTab('help')} className={`px-4 py-2 rounded-lg font-medium whitespace-nowrap transition-colors ${activeTab === 'help' ? 'bg-indigo-600 text-white' : 'bg-white dark:bg-slate-700 text-slate-600 dark:text-slate-200 border dark:border-slate-600'}`}>Pusat Bantuan</button>
       </div>
 
       <div className="bg-white dark:bg-slate-800 p-6 rounded-xl shadow-sm border border-slate-200 dark:border-slate-700">
           
-          {activeTab === 'help' && (
-              <div className="space-y-8 animate-fade-in">
-                  <div className="flex items-center gap-4 border-b dark:border-slate-700 pb-6">
-                      <div className="w-16 h-16 bg-indigo-50 dark:bg-indigo-900/30 rounded-2xl flex items-center justify-center text-indigo-600">
-                        <BookOpen size={36} />
-                      </div>
-                      <div>
-                          <h3 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Pusat Bantuan</h3>
-                          <p className="text-sm text-slate-500 dark:text-slate-400">Pelajari otomasi sistem dan manajemen rental profesional.</p>
-                      </div>
-                  </div>
-
-                  {/* INSTALLATION GUIDE SECTION */}
-                  <div className="bg-indigo-600 rounded-3xl p-6 text-white shadow-xl relative overflow-hidden">
-                      <div className="absolute top-0 right-0 w-48 h-48 bg-white/10 rounded-full blur-3xl -mr-10 -mt-10"></div>
-                      <h4 className="text-lg font-black uppercase tracking-tighter mb-4 flex items-center gap-2">
-                          <Smartphone size={24}/> Panduan Instalasi Aplikasi (PWA)
-                      </h4>
-                      <p className="text-sm text-indigo-100 mb-6 leading-relaxed">Instal aplikasi ini ke layar utama HP Anda agar bisa diakses secara instan seperti aplikasi dari Play Store/App Store tanpa perlu download file besar.</p>
-                      
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          {/* Android/Chrome */}
-                          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20">
-                              <div className="flex items-center gap-3 mb-4">
-                                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 font-bold">A</div>
-                                  <h5 className="font-bold">Android (Google Chrome)</h5>
-                              </div>
-                              <ul className="space-y-3 text-xs">
-                                  <li className="flex gap-2">
-                                      <span className="font-black opacity-50">01</span>
-                                      <span>Buka <strong>wirarentcar.site</strong> di browser Chrome Anda.</span>
-                                  </li>
-                                  <li className="flex gap-2">
-                                      <span className="font-black opacity-50">02</span>
-                                      <span>Klik ikon **Tiga Titik (⋮)** di pojok kanan atas.</span>
-                                  </li>
-                                  <li className="flex gap-2">
-                                      <span className="font-black opacity-50">03</span>
-                                      <span className="flex items-center gap-1">Pilih menu **"Instal Aplikasi"** atau **"Tambahkan ke Layar Utama"**. <Smartphone size={12}/></span>
-                                  </li>
-                                  <li className="flex gap-2">
-                                      <span className="font-black opacity-50">04</span>
-                                      <span>Ikon aplikasi akan muncul di menu HP Anda!</span>
-                                  </li>
-                              </ul>
-                          </div>
-
-                          {/* iOS/Safari */}
-                          <div className="bg-white/10 backdrop-blur-md rounded-2xl p-5 border border-white/20">
-                              <div className="flex items-center gap-3 mb-4">
-                                  <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-indigo-600 font-bold">i</div>
-                                  <h5 className="font-bold">iOS / iPhone (Safari)</h5>
-                              </div>
-                              <ul className="space-y-3 text-xs">
-                                  <li className="flex gap-2">
-                                      <span className="font-black opacity-50">01</span>
-                                      <span>Buka link aplikasi di browser **Safari**.</span>
-                                  </li>
-                                  <li className="flex gap-2">
-                                      <span className="font-black opacity-50">02</span>
-                                      <span className="flex items-center gap-1">Klik tombol **Share** (Kotak dengan panah atas <Share size={12}/>) di bawah.</span>
-                                  </li>
-                                  <li className="flex gap-2">
-                                      <span className="font-black opacity-50">03</span>
-                                      <span className="flex items-center gap-1">Gulir ke bawah dan klik **"Add to Home Screen"** (<PlusSquare size={12}/>).</span>
-                                  </li>
-                                  <li className="flex gap-2">
-                                      <span className="font-black opacity-50">04</span>
-                                      <span>Klik **"Add"** di pojok kanan atas. Selesai!</span>
-                                  </li>
-                              </ul>
-                          </div>
-                      </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                        <div className="p-4 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-100 dark:border-slate-600">
-                            <h4 className="font-bold text-slate-800 dark:text-slate-200 mb-2 flex items-center gap-2">
-                                <ShieldCheck size={16} className="text-green-500"/> Akses Anda
-                            </h4>
-                            <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed">
-                                Role: <span className="uppercase font-bold text-indigo-600">{currentUser.role === 'partner' ? 'Investor' : currentUser.role}</span>. 
-                                Anda memiliki izin untuk mengelola {currentUser.role === 'superadmin' ? 'seluruh sistem' : 'data operasional harian'}.
-                            </p>
-                        </div>
-                        <div className="p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-xl border border-indigo-100 dark:border-indigo-800">
-                            <h4 className="font-bold text-indigo-800 dark:text-indigo-200 mb-2 flex items-center gap-2">
-                                <Zap size={16}/> Sistem Otomatis
-                            </h4>
-                            <p className="text-xs text-indigo-600 dark:text-indigo-300 leading-relaxed">
-                                Aplikasi ini menggunakan sistem **Anti-Bentrok Otomatis** yang mengunci jadwal secara real-time saat booking dikonfirmasi.
-                            </p>
-                        </div>
-                        <div className="p-4 bg-purple-50 dark:bg-purple-900/20 rounded-xl border border-purple-100 dark:border-purple-800">
-                            <h4 className="font-bold text-purple-800 dark:text-purple-200 mb-2 flex items-center gap-2">
-                                <MessageCircle size={16}/> Hubungi Support
-                            </h4>
-                            <p className="text-xs text-purple-600 dark:text-purple-300 leading-relaxed">
-                                WhatsApp: <strong>{settings.phone}</strong><br/>
-                                Email: <strong>{settings.email}</strong>
-                            </p>
-                        </div>
-                  </div>
-
-                  <div className="space-y-4">
-                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 mb-4 flex items-center gap-2">
-                          <Zap size={14}/> Operasional & Jadwal
-                      </h4>
-                      <FaqItem 
-                        question="Bagaimana cara kerja fitur Anti-Bentrok?" 
-                        answer={
-                            <div className="space-y-2">
-                                <p>Sistem melakukan pengecekan ketersediaan secara instan. Saat Anda memilih tanggal/jam sewa di tab <strong>'Input Baru'</strong>, sistem akan menyaring armada yang sedang jalan (Active) atau sudah dipesan (Booked) pada jam tersebut.</p>
-                                <p className="font-bold text-indigo-600 italic">Tips: Gunakan menu 'Timeline' untuk melihat visualisasi jadwal seluruh armada dalam satu bulan.</p>
-                            </div>
-                        }
-                      />
-                      <FaqItem 
-                        question="Apa itu fitur Rent to Rent / Unit Luar?" 
-                        answer="Fitur ini digunakan jika Anda menyewa mobil dari rental lain (Vendor) untuk disewakan kembali ke pelanggan Anda. Anda bisa mencatat Biaya Vendor (HPP) yang akan otomatis tercatat sebagai pengeluaran (Expense) saat transaksi selesai." 
-                      />
-                      <FaqItem 
-                        question="Kapan status Booking berubah otomatis?" 
-                        answer="Status otomatis menjadi 'Active' setelah Anda menyimpan Checklist Serah Terima. Status menjadi 'Completed' saat Anda mengisi Tanggal/Jam Pengembalian Aktual di form edit booking." 
-                      />
-
-                      <h4 className="font-black text-xs uppercase tracking-widest text-slate-400 dark:text-slate-500 mt-8 mb-4 flex items-center gap-2">
-                          <ReceiptText size={14}/> Invoice & Dokumentasi
-                      </h4>
-                      <FaqItem 
-                        question="Bagaimana cara kirim Nota lewat WhatsApp?" 
-                        answer="Di tab 'Daftar Booking', klik tombol ikon WhatsApp pada baris transaksi. Sistem akan membuka WhatsApp Web/Aplikasi dengan template pesan profesional yang sudah terisi rincian unit, harga, dan sisa tagihan." 
-                      />
-                      <FaqItem 
-                        question="Apa kegunaan fitur Invoice Kolektif?" 
-                        answer="Digunakan khusus untuk pelanggan tetap atau instansi yang menyewa berkali-kali namun pembayarannya digabung di akhir bulan. Anda bisa memilih beberapa transaksi sekaligus dan sistem akan menghasilkan satu file PDF gabungan." 
-                      />
-                  </div>
-
-                  <div className="bg-slate-900 rounded-2xl p-6 text-white text-center">
-                      <h4 className="font-bold text-lg mb-2">Masih bingung dengan sistem?</h4>
-                      <p className="text-slate-400 text-sm mb-4">Kami siap membantu optimasi operasional rental Anda.</p>
-                      <button onClick={() => window.open(`https://wa.me/${settings.phone.replace(/\D/g, '')}`, '_blank')} className="bg-indigo-600 hover:bg-indigo-500 px-6 py-2 rounded-full font-bold transition-all inline-flex items-center gap-2">
-                          <MessageCircle size={18}/> Konsultasi Langsung
-                      </button>
-                  </div>
-              </div>
-          )}
-
           {activeTab === 'appearance' && isSuperAdmin && (
               <div className="space-y-8 animate-fade-in">
                   <div className="flex items-center gap-3 border-b dark:border-slate-700 pb-4">
@@ -444,7 +253,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                          <Logo src={settings.logoUrl} />
                      </div>
                      <div>
-                         <label className="block text-sm font-medium mb-2 dark:text-slate-200">Ganti Logo (Upload/Kamera)</label>
+                         <label className="block text-sm font-medium mb-2 dark:text-slate-200">Ganti Logo</label>
                          <input 
                              disabled={!isSuperAdmin} 
                              type="file" 
@@ -513,7 +322,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                         />
                      </div>
                  </div>
-                 {isSuperAdmin && <button type="submit" disabled={isUploading} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50">Simpan Pengaturan</button>}
+                 {isSuperAdmin && <button type="submit" disabled={isUploading} className="bg-indigo-600 text-white px-6 py-2 rounded-lg font-bold disabled:opacity-50 shadow-lg shadow-indigo-100">Simpan Pengaturan</button>}
              </form>
           )}
 
@@ -581,7 +390,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                       
                       <form onSubmit={handleSaveUser} className="space-y-4">
                           <div className="flex flex-col items-center mb-4">
-                              <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-2">Foto Profil {isUploading && '(Mengompres...)'}</label>
+                              <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-2">Foto Profil</label>
                               <div className="relative w-24 h-24 bg-white dark:bg-slate-800 rounded-full border-2 border-dashed border-slate-300 dark:border-slate-500 flex items-center justify-center overflow-hidden group hover:border-indigo-500 transition-colors">
                                   {userImage ? (
                                       <>
@@ -590,7 +399,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                               type="button"
                                               onClick={() => setUserImage(null)}
                                               className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white"
-                                              title="Hapus Foto"
                                           >
                                               <X size={20} />
                                           </button>
@@ -635,9 +443,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                             <option key={d.id} value={d.id}>{d.name}</option>
                                         ))}
                                     </select>
-                                    <p className="text-[10px] text-yellow-700 mt-1">
-                                        *User ini hanya akan melihat tugas dan pendapatan milik Driver yang dipilih.
-                                    </p>
                                 </div>
                             )}
                             {role === 'partner' && (
@@ -651,9 +456,6 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                             <option key={p.id} value={p.id}>{p.name}</option>
                                         ))}
                                     </select>
-                                    <p className="text-[10px] text-purple-700 mt-1">
-                                        *User ini hanya akan melihat unit mobil dan laporan keuangan milik Investor yang dipilih.
-                                    </p>
                                 </div>
                             )}
                             <div>
@@ -662,17 +464,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                             </div>
                             <div>
                                 <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Password</label>
-                                <div className="relative">
-                                    <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full border rounded p-2" placeholder="••••••" />
-                                </div>
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">Email (Optional)</label>
-                                <input type="email" value={email} onChange={e => setEmail(e.target.value)} className="w-full border rounded p-2" placeholder="email@company.com" />
-                            </div>
-                            <div>
-                                <label className="block text-xs font-bold uppercase text-slate-500 dark:text-slate-400 mb-1">No. HP (Optional)</label>
-                                <input type="tel" value={phone} onChange={e => setPhone(e.target.value)} className="w-full border rounded p-2" placeholder="08xxxxxxxx" />
+                                <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full border rounded p-2" placeholder="••••••" />
                             </div>
                           </div>
 
@@ -681,7 +473,7 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                                   <button type="button" onClick={resetUserForm} className="px-4 py-2 bg-slate-100 dark:bg-slate-600 text-slate-600 dark:text-slate-200 rounded-lg font-bold">Batal</button>
                               )}
                               <button type="submit" disabled={isUploading} className="flex-1 bg-indigo-600 text-white px-4 py-2 rounded-lg font-bold disabled:opacity-50">
-                                  {isUploading ? 'Memproses...' : (editingUserId ? 'Simpan Perubahan' : 'Simpan User')}
+                                  {editingUserId ? 'Simpan Perubahan' : 'Simpan User'}
                               </button>
                           </div>
                       </form>
@@ -693,35 +485,28 @@ const SettingsPage: React.FC<Props> = ({ currentUser }) => {
                               <tr>
                                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">User</th>
                                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Role</th>
-                                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Kontak</th>
                                   <th className="px-6 py-3 text-right text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aksi</th>
                               </tr>
                           </thead>
                           <tbody className="bg-white dark:bg-slate-800 divide-y divide-slate-200 dark:divide-slate-700">
                               {users.map(u => (
-                                  <tr key={u.id}>
+                                  <tr key={u.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50 transition-colors">
                                       <td className="px-6 py-4 whitespace-nowrap">
                                           <div className="flex items-center">
-                                              <div className="flex-shrink-0 h-10 w-10">
-                                                  <img className="h-10 w-10 rounded-full object-cover bg-slate-100" src={u.image || `https://ui-avatars.com/api/?name=${u.name}`} alt="" />
-                                              </div>
-                                              <div className="ml-4">
+                                              <img className="h-8 w-8 rounded-full object-cover mr-3 bg-slate-100" src={u.image || `https://ui-avatars.com/api/?name=${u.name}`} alt="" />
+                                              <div>
                                                   <div className="text-sm font-medium text-slate-900 dark:text-white">{u.name}</div>
-                                                  <div className="text-sm text-slate-500 dark:text-slate-400">@{u.username}</div>
+                                                  <div className="text-xs text-slate-500">@{u.username}</div>
                                               </div>
                                           </div>
                                       </td>
                                       <td className="px-6 py-4 whitespace-nowrap">
-                                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800 uppercase">
-                                              {u.role === 'partner' ? 'Investor' : u.role}
+                                          <span className="px-2 inline-flex text-xs leading-5 font-semibold rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900/40 dark:text-indigo-300 uppercase">
+                                              {u.role}
                                           </span>
                                       </td>
-                                      <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-500 dark:text-slate-400">
-                                          <div>{u.email}</div>
-                                          <div>{u.phone}</div>
-                                      </td>
                                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                                          <button onClick={() => handleEditUser(u)} className="text-indigo-600 hover:text-indigo-900 mr-4">Edit</button>
+                                          <button onClick={() => handleEditUser(u)} className="text-indigo-600 dark:text-indigo-400 hover:text-indigo-900 mr-4">Edit</button>
                                           {u.id !== currentUser.id && (
                                               <button onClick={() => handleDeleteUser(u.id)} className="text-red-600 hover:text-red-900">Hapus</button>
                                           )}

@@ -1,9 +1,8 @@
-
-import React, { useState, useEffect, useRef } from 'react';
-import { Vendor, Booking, Transaction, BookingStatus } from '../types';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Vendor, Booking, Transaction, BookingStatus, Car } from '../types';
 import { getStoredData, setStoredData, exportToCSV, processCSVImport, mergeData, compressImage } from '../services/dataService';
 import { generateMonthlyReportPDF } from '../services/pdfService';
-import { Plus, Trash2, Phone, Edit2, X, Image as ImageIcon, History, Calendar, CheckCircle, Wallet, Download, Upload, Filter, Building, MapPin, DollarSign, FileText, FileSpreadsheet } from 'lucide-react';
+import { Plus, Trash2, Phone, Edit2, X, Image as ImageIcon, History, Calendar, CheckCircle, Wallet, Download, Upload, Filter, Building, MapPin, DollarSign, FileText, FileSpreadsheet, Search, ExternalLink, Car as CarIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 const VendorsPage = () => {
@@ -11,7 +10,9 @@ const VendorsPage = () => {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [cars, setCars] = useState<Car[]>([]);
   
+  const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
@@ -36,7 +37,14 @@ const VendorsPage = () => {
     setVendors(getStoredData<Vendor[]>('vendors', []));
     setBookings(getStoredData<Booking[]>('bookings', []));
     setTransactions(getStoredData<Transaction[]>('transactions', []));
+    setCars(getStoredData<Car[]>('cars', []));
   }, []);
+
+  const filteredVendorsList = useMemo(() => {
+    if (!searchTerm) return vendors;
+    const low = searchTerm.toLowerCase();
+    return vendors.filter(v => v.name.toLowerCase().includes(low) || (v.phone && v.phone.includes(searchTerm)));
+  }, [vendors, searchTerm]);
 
   const openModal = (vendor?: Vendor) => {
     if (vendor) {
@@ -88,22 +96,11 @@ const VendorsPage = () => {
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();
     const finalImage = imagePreview || `https://i.pravatar.cc/150?u=${Date.now()}`;
-
     const newVendor: Vendor = {
         id: editingVendor ? editingVendor.id : Date.now().toString(),
-        name,
-        phone,
-        address,
-        image: finalImage
+        name, phone, address, image: finalImage
     };
-
-    let updatedVendors;
-    if (editingVendor) {
-        updatedVendors = vendors.map(v => v.id === editingVendor.id ? newVendor : v);
-    } else {
-        updatedVendors = [...vendors, newVendor];
-    }
-
+    let updatedVendors = editingVendor ? vendors.map(v => v.id === editingVendor.id ? newVendor : v) : [newVendor, ...vendors];
     setVendors(updatedVendors);
     setStoredData('vendors', updatedVendors);
     setIsModalOpen(false);
@@ -119,56 +116,40 @@ const VendorsPage = () => {
       }
   };
 
-  const getVendorBookings = () => {
-      if(!historyVendor) return [];
-      let filtered = bookings.filter(b => b.isRentToRent && b.vendorId === historyVendor.id && b.status !== BookingStatus.CANCELLED);
+  const filteredVendorBookings = useMemo(() => {
+    if(!historyVendor) return [];
+    let filtered = bookings.filter(b => b.isRentToRent && b.vendorId === historyVendor.id && b.status !== BookingStatus.CANCELLED);
+    if (historyStartDate) filtered = filtered.filter(b => b.startDate.split('T')[0] >= historyStartDate);
+    if (historyEndDate) filtered = filtered.filter(b => b.startDate.split('T')[0] <= historyEndDate);
+    return filtered.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+  }, [historyVendor, bookings, historyStartDate, historyEndDate]);
 
-      if (historyStartDate || historyEndDate) {
-          filtered = filtered.filter(b => {
-              const date = b.startDate.split('T')[0];
-              const start = historyStartDate || '0000-00-00';
-              const end = historyEndDate || '9999-12-31';
-              return date >= start && date <= end;
-          });
-      }
-      return filtered.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
-  };
+  const filteredVendorPayments = useMemo(() => {
+    if(!historyVendor) return [];
+    let filtered = transactions.filter(t => (t.category === 'Sewa Vendor' || (t.category === 'Setor Mitra' && t.relatedId === historyVendor.id)) && t.relatedId === historyVendor.id);
+    if (historyStartDate) filtered = filtered.filter(t => t.date >= historyStartDate);
+    if (historyEndDate) filtered = filtered.filter(t => t.date <= historyEndDate);
+    return filtered.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [historyVendor, transactions, historyStartDate, historyEndDate]);
 
-  const getVendorPayments = () => {
-      if(!historyVendor) return [];
-      let filtered = transactions.filter(t => (t.category === 'Sewa Vendor' || (t.category === 'Setor Mitra' && t.relatedId === historyVendor.id)) && t.relatedId === historyVendor.id);
-
-      if (historyStartDate || historyEndDate) {
-          filtered = filtered.filter(t => {
-              const date = t.date.split('T')[0];
-              const start = historyStartDate || '0000-00-00';
-              const end = historyEndDate || '9999-12-31';
-              return date >= start && date <= end;
-          });
-      }
-      return filtered.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
-  };
-
-  const handlePayTransaction = (id: string) => {
-      navigate('/expenses', { state: { action: 'pay', transactionId: id } });
-  };
+  const handlePayTransaction = (id: string) => { navigate('/expenses', { state: { action: 'pay', transactionId: id } }); };
 
   const handleDownloadReport = () => {
       if (!historyVendor) return;
       const month = historyStartDate ? historyStartDate.slice(0, 7) : new Date().toISOString().slice(0, 7);
-      generateMonthlyReportPDF('Vendor', historyVendor, month, getVendorPayments(), getVendorBookings());
+      generateMonthlyReportPDF('Vendor', historyVendor, month, filteredVendorPayments, filteredVendorBookings);
   };
 
   const handleExportExcel = () => {
       if (!historyVendor) return;
-      const data = activeHistoryTab === 'bookings' ? getVendorBookings().map(b => ({
+      const data = activeHistoryTab === 'bookings' ? filteredVendorBookings.map(b => ({
           ID: b.id,
           Tanggal: new Date(b.startDate).toLocaleDateString('id-ID'),
           Pelanggan: b.customerName,
           Unit_External: b.externalCarName,
           HPP_Vendor: b.vendorFee,
           Status: b.status
-      })) : getVendorPayments().map(t => ({
+      })) : filteredVendorPayments.map(t => ({
           Tanggal: new Date(t.date).toLocaleDateString('id-ID'),
           Kategori: t.category,
           Deskripsi: t.description,
@@ -178,135 +159,88 @@ const VendorsPage = () => {
       exportToCSV(data, `Laporan_Vendor_${historyVendor.name}_${activeHistoryTab}`);
   };
 
-  const handleExport = () => exportToCSV(vendors, 'Data_Vendor_WiraRentCar');
-  const handleImportClick = () => fileInputRef.current?.click();
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if(file) {
-          processCSVImport(file, (data) => {
-              const imported: Vendor[] = data.map((d: any) => d as Vendor);
-              const merged = mergeData(vendors, imported);
-              setVendors(merged);
-              setStoredData('vendors', merged);
-              alert('Data vendor berhasil diproses!');
-          });
-      }
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-800">Manajemen Vendor</h2>
-          <p className="text-slate-500">Kelola data rental rekanan (Vendor) untuk unit eksternal.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-            <div className="hidden md:flex gap-2 mr-2">
-                <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportFile} />
-                <button onClick={handleImportClick} className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium">
-                    <Upload size={16} /> Import
-                </button>
-                <button onClick={handleExport} className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium">
-                    <Download size={16} /> Export
+      <div className="sticky top-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 py-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+          <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white">Manajemen Vendor</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">Rental rekanan (Vendor) untuk unit eksternal.</p>
+            </div>
+            
+            <div className="flex flex-wrap items-center gap-3">
+                <div className="relative flex-1 min-w-[200px] md:w-64">
+                    <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <input 
+                        type="text" 
+                        placeholder="Cari vendor..." 
+                        className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white shadow-sm"
+                        value={searchTerm}
+                        onChange={e => setSearchTerm(e.target.value)}
+                    />
+                </div>
+                <button onClick={() => openModal()} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all font-bold shadow-lg active:scale-95">
+                    <Plus size={20} /> <span className="hidden sm:inline">Tambah Vendor</span>
                 </button>
             </div>
-            <button onClick={() => openModal()} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                <Plus size={18} /> Tambah Vendor
-            </button>
-        </div>
+          </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {vendors.map(vendor => {
+          {filteredVendorsList.map(vendor => {
               const activeRents = bookings.filter(b => b.isRentToRent && b.vendorId === vendor.id && b.status === 'Active').length;
-
               return (
-                <div key={vendor.id} className="bg-white p-6 rounded-xl shadow-sm border border-slate-200">
-                    <div className="flex justify-between items-start mb-4">
+                <div key={vendor.id} className="bg-white dark:bg-slate-800 p-6 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 hover:shadow-xl transition-all group">
+                    <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-4">
-                            <img src={vendor.image || `https://i.pravatar.cc/150?u=${vendor.id}`} alt={vendor.name} className="w-14 h-14 rounded-full bg-slate-100 object-cover border border-slate-200" />
+                            <div className="w-16 h-16 rounded-2xl bg-slate-100 dark:bg-slate-900 flex items-center justify-center border border-slate-200 dark:border-slate-700 overflow-hidden">
+                                <img src={vendor.image || `https://i.pravatar.cc/150?u=${vendor.id}`} alt={vendor.name} className="w-full h-full object-cover" />
+                            </div>
                             <div>
-                                <h3 className="text-xl font-bold text-slate-800">{vendor.name}</h3>
-                                <div className="flex items-center text-slate-500 text-sm mt-1 gap-1">
-                                    <Phone size={14} /> {vendor.phone}
-                                </div>
+                                <h3 className="text-xl font-black uppercase tracking-tighter text-slate-800 dark:text-white">{vendor.name}</h3>
+                                <div className="flex items-center text-slate-500 dark:text-slate-400 text-sm mt-1 gap-1 font-mono"><Phone size={14} className="text-green-500" /> {vendor.phone}</div>
                             </div>
                         </div>
-                        <div className="flex flex-col items-end gap-2">
-                            <div className="flex gap-1">
-                                <button onClick={() => openModal(vendor)} className="p-1.5 text-slate-500 hover:bg-slate-100 rounded border hover:text-indigo-600"><Edit2 size={16} /></button>
-                                <button onClick={() => handleDelete(vendor.id)} className="p-1.5 text-slate-500 hover:bg-red-50 rounded border hover:text-red-600"><Trash2 size={16} /></button>
-                            </div>
+                        <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onClick={() => openModal(vendor)} className="p-2 text-slate-400 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-xl hover:text-indigo-600 transition-all border dark:border-slate-700"><Edit2 size={16} /></button>
+                            <button onClick={() => handleDelete(vendor.id)} className="p-2 text-slate-400 hover:bg-red-50 rounded-xl hover:text-red-600 transition-all border dark:border-slate-700"><Trash2 size={16} /></button>
                         </div>
                     </div>
-                    <div className="bg-slate-50 p-4 rounded-lg border border-slate-100 mb-4">
+                    <div className="bg-slate-50 dark:bg-slate-900/50 p-4 rounded-2xl border border-slate-100 dark:border-slate-700 mb-6">
                         <div className="flex items-center justify-between">
-                            <div>
-                                <p className="text-xs text-slate-500 uppercase">Unit Sedang Dipinjam</p>
-                                <p className="font-bold text-xl">{activeRents}</p>
-                            </div>
-                            <Building size={24} className="text-slate-300" />
+                            <div><p className="text-[10px] text-slate-400 uppercase font-black tracking-widest">Unit Dipinjam</p><p className="font-black text-2xl text-slate-800 dark:text-white">{activeRents}</p></div>
+                            <Building size={32} className="text-slate-300 dark:text-slate-700" />
                         </div>
-                        {vendor.address && (
-                            <div className="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600 flex items-start gap-1">
-                                <MapPin size={12} className="mt-0.5 flex-shrink-0" /> {vendor.address}
-                            </div>
-                        )}
+                        {vendor.address && <div className="mt-3 pt-3 border-t dark:border-slate-700 text-xs text-slate-600 dark:text-slate-400 flex items-start gap-1"><MapPin size={12} className="mt-0.5 flex-shrink-0 text-red-500" /> {vendor.address}</div>}
                     </div>
-                    <div className="flex flex-col gap-2">
-                        <button onClick={() => openHistoryModal(vendor)} className="w-full py-2 text-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium">
-                            <History size={16} /> Riwayat & Tagihan
-                        </button>
-                    </div>
+                    <button onClick={() => openHistoryModal(vendor)} className="w-full py-3 text-xs font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 rounded-xl flex items-center justify-center gap-2 transition-colors border border-indigo-100 dark:border-indigo-800">
+                        <History size={16} /> Riwayat & Tagihan
+                    </button>
                 </div>
               );
           })}
       </div>
 
        {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl w-full max-w-md p-6 shadow-2xl max-h-[90vh] overflow-y-auto">
-                  <div className="flex justify-between items-center mb-6">
-                      <h3 className="text-xl font-bold text-slate-800">{editingVendor ? 'Edit Vendor' : 'Tambah Vendor Baru'}</h3>
-                      <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+              <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-md p-8 shadow-2xl border border-slate-200 dark:border-slate-700">
+                  <div className="flex justify-between items-center mb-8">
+                      <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter uppercase">{editingVendor ? 'Edit Vendor' : 'Tambah Vendor'}</h3>
+                      <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-600 bg-slate-100 dark:bg-slate-700 rounded-full p-1.5"><X size={24}/></button>
                   </div>
                   <form onSubmit={handleSave} className="space-y-6">
-                      <div className="flex flex-col items-center mb-4">
-                          <label className="block text-sm font-medium text-slate-700 mb-2">Foto / Logo {isUploading && '(Mengompres...)'}</label>
-                          <div className="relative w-28 h-28 bg-slate-100 rounded-full border-4 border-slate-50 flex items-center justify-center overflow-hidden group">
-                              {imagePreview ? (
-                                  <>
-                                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                                      <button type="button" onClick={handleRemoveImage} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white" title="Hapus Foto">
-                                          <X size={20} />
-                                      </button>
-                                  </>
-                              ) : (
-                                  <div className="text-center text-slate-400">
-                                      <ImageIcon className="w-8 h-8 mx-auto mb-1" />
-                                      <span className="text-[10px]">Foto</span>
-                                  </div>
-                              )}
+                      <div className="flex flex-col items-center">
+                          <div className="relative w-32 h-32 bg-slate-100 dark:bg-slate-900 rounded-3xl border-4 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden group hover:border-indigo-500 cursor-pointer">
+                              {imagePreview ? <img src={imagePreview} className="w-full h-full object-cover" /> : <ImageIcon className="w-10 h-10 text-slate-400" />}
                               <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
                           </div>
                       </div>
-                      <div>
-                          <label className="block text-sm font-medium text-slate-700">Nama Rental (Vendor)</label>
-                          <input required type="text" className="w-full border rounded-lg p-2.5 mt-1" value={name} onChange={e => setName(e.target.value)} />
-                      </div>
-                      <div>
-                          <label className="block text-sm font-medium text-slate-700">No. Telepon / WA</label>
-                          <input required type="tel" className="w-full border rounded-lg p-2.5 mt-1" value={phone} onChange={e => setPhone(e.target.value)} />
-                      </div>
-                      <div>
-                          <label className="block text-sm font-medium text-slate-700">Alamat</label>
-                          <textarea className="w-full border rounded-lg p-2.5 mt-1" value={address} onChange={e => setAddress(e.target.value)} rows={2} />
-                      </div>
-                      <div className="flex gap-3 mt-6 pt-4 border-t">
-                          <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium">Batal</button>
-                          <button disabled={isUploading} type="submit" className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 font-bold shadow-lg shadow-indigo-200 disabled:opacity-50">
-                            {isUploading ? 'Memproses...' : 'Simpan'}
-                          </button>
+                      <div><label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Nama Rental (Vendor)</label><input required className="w-full border dark:border-slate-700 dark:bg-slate-900 dark:text-white rounded-xl p-3 font-bold" value={name} onChange={e => setName(e.target.value)} /></div>
+                      <div><label className="block text-[10px] font-black uppercase text-slate-400 mb-1">No. Telepon / WA</label><input required className="w-full border dark:border-slate-700 dark:bg-slate-900 dark:text-white rounded-xl p-3 font-bold" value={phone} onChange={e => setPhone(e.target.value)} /></div>
+                      <div><label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Alamat</label><textarea className="w-full border dark:border-slate-700 dark:bg-slate-900 dark:text-white rounded-xl p-3 font-bold" value={address} onChange={e => setAddress(e.target.value)} rows={2} /></div>
+                      <div className="flex gap-3 mt-8 pt-6 border-t dark:border-slate-700">
+                          <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold">Batal</button>
+                          <button disabled={isUploading} type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest shadow-xl hover:bg-indigo-700 transition-all">Simpan</button>
                       </div>
                   </form>
               </div>
@@ -314,107 +248,50 @@ const VendorsPage = () => {
       )}
 
       {isHistoryModalOpen && historyVendor && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-               <div className="bg-white rounded-xl w-full max-w-3xl p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-                    <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
-                         <div className="flex items-center gap-4">
-                            <img src={historyVendor.image} alt={historyVendor.name} className="w-14 h-14 rounded-full bg-slate-200 object-cover border-2 border-slate-100" />
-                            <div>
-                                <h3 className="font-bold text-xl text-slate-800">{historyVendor.name}</h3>
-                                <p className="text-sm text-slate-500">Detail Riwayat Pinjaman</p>
-                            </div>
-                         </div>
-                         <div className="flex gap-2 w-full sm:w-auto">
-                            <button onClick={handleExportExcel} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700 transition-colors">
-                                 <FileSpreadsheet size={16}/> Excel
-                            </button>
-                            <button onClick={handleDownloadReport} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-900 transition-colors">
-                                 <FileText size={16}/> PDF
-                            </button>
-                            <button onClick={() => setIsHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
-                         </div>
-                    </div>
-                    <div className="flex gap-2 border-b border-slate-100 mb-4">
-                        <button onClick={() => setActiveHistoryTab('bookings')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeHistoryTab === 'bookings' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Unit Dipinjam</button>
-                        <button onClick={() => setActiveHistoryTab('payments')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeHistoryTab === 'payments' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Riwayat Pembayaran</button>
-                    </div>
-                    <div className="flex items-center gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        <Filter size={14} className="text-slate-500 ml-1" />
-                        <span className="text-xs font-bold text-slate-700">Filter Tanggal:</span>
-                        <input type="date" className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" value={historyStartDate} onChange={e => setHistoryStartDate(e.target.value)} />
-                        <span className="text-xs text-slate-400">-</span>
-                        <input type="date" className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} />
-                        {(historyStartDate || historyEndDate) && (
-                            <button onClick={() => {setHistoryStartDate(''); setHistoryEndDate('')}} className="text-xs text-red-500 hover:underline ml-auto mr-2">Reset</button>
-                        )}
-                    </div>
-                    <div className="min-h-[300px]">
-                        {activeHistoryTab === 'bookings' && (
-                            <div className="space-y-3">
-                                {getVendorBookings().length === 0 ? (
-                                    <div className="text-center py-10 text-slate-500 italic">Belum ada riwayat peminjaman unit dari vendor ini.</div>
-                                ) : (
-                                    getVendorBookings().map(booking => (
-                                        <div key={booking.id} className="p-3 border rounded-lg bg-slate-50 flex justify-between items-center">
-                                            <div>
-                                                <div className="flex items-center gap-2 mb-1">
-                                                    <span className="text-xs font-bold bg-white border px-1.5 py-0.5 rounded text-slate-700">{booking.id.slice(0,6)}</span>
-                                                    <span className="text-sm font-bold text-slate-800">{booking.customerName}</span>
-                                                </div>
-                                                <div className="text-xs text-slate-600 flex items-center gap-2">
-                                                    <span className="flex items-center gap-1"><Calendar size={10}/> {new Date(booking.startDate).toLocaleDateString('id-ID')}</span>
-                                                </div>
-                                                <div className="text-xs text-slate-500 mt-1">
-                                                    Unit Luar: {booking.externalCarName} ({booking.externalCarPlate})
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-[10px] text-slate-500 mb-1">Fee Vendor</div>
-                                                <div className="font-bold text-red-600 text-sm">Rp {booking.vendorFee?.toLocaleString('id-ID') || 0}</div>
-                                                <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold mt-1 inline-block ${booking.status === BookingStatus.COMPLETED ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                    {booking.status}
-                                                </span>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
-                        {activeHistoryTab === 'payments' && (
-                            <div className="space-y-3">
-                                {getVendorPayments().length === 0 ? (
-                                    <div className="text-center py-10 text-slate-500 italic">Belum ada riwayat pembayaran ke vendor ini.</div>
-                                ) : (
-                                    getVendorPayments().map(tx => (
-                                        <div key={tx.id} className="p-3 border rounded-lg bg-white flex justify-between items-center">
-                                            <div>
-                                                <div className="text-sm font-bold text-slate-800">{tx.description}</div>
-                                                <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
-                                                    <span>{new Date(tx.date).toLocaleDateString('id-ID')}</span>
-                                                    <span className="px-1.5 py-0.5 bg-slate-100 rounded">{tx.category}</span>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-bold text-red-600">Rp {tx.amount.toLocaleString('id-ID')}</div>
-                                                <div className="mt-1 flex justify-end gap-2 items-center">
-                                                    {tx.status === 'Paid' ? (
-                                                        <span className="flex items-center justify-end gap-1 text-[10px] text-green-600 font-bold">
-                                                            <CheckCircle size={10}/> Sudah Dibayarkan
-                                                        </span>
-                                                    ) : (
-                                                        <button onClick={() => handlePayTransaction(tx.id)} className="flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded text-[10px] hover:bg-green-700 transition-colors cursor-pointer">
-                                                            <Wallet size={10}/> Bayar Sekarang
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
-                    </div>
-               </div>
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+              <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                  <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+                      <div className="flex items-center gap-4">
+                          <Building size={32} className="text-indigo-600" />
+                          <div><h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight">Tagihan Vendor: {historyVendor.name}</h3><p className="text-xs text-slate-500">Monitoring penyewaan unit external.</p></div>
+                      </div>
+                      <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-red-50 text-slate-400 rounded-full transition-colors"><X size={24}/></button>
+                  </div>
+
+                  <div className="p-4 border-b dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                          <button onClick={() => setActiveHistoryTab('bookings')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeHistoryTab === 'bookings' ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Unit Dipinjam</button>
+                          <button onClick={() => setActiveHistoryTab('payments')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeHistoryTab === 'payments' ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Pembayaran</button>
+                      </div>
+                      <div className="ml-auto flex gap-2">
+                           <button onClick={handleExportExcel} className="p-2 bg-green-50 text-green-600 rounded-lg border border-green-200"><FileSpreadsheet size={18}/></button>
+                           <button onClick={handleDownloadReport} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg border border-indigo-200"><Download size={18}/></button>
+                      </div>
+                  </div>
+
+                  <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-900/30">
+                      {activeHistoryTab === 'bookings' ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {filteredVendorBookings.map(b => (
+                                  <div key={b.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border dark:border-slate-700 shadow-sm">
+                                      <div className="flex justify-between items-start mb-3"><span className="text-[10px] font-black bg-indigo-100 dark:bg-indigo-900 text-indigo-700 px-2 py-0.5 rounded uppercase">#{b.id.slice(0,6)}</span><span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${b.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{b.status}</span></div>
+                                      <div className="flex items-center gap-3 mb-3"><div className="w-10 h-10 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-slate-400"><CarIcon size={20}/></div><div><p className="text-sm font-bold dark:text-white">{b.externalCarName}</p><p className="text-[10px] text-slate-500 font-mono">{b.externalCarPlate}</p></div></div>
+                                      <div className="space-y-2 text-xs border-t dark:border-slate-700 pt-3"><div className="flex justify-between"><span className="text-slate-500">Tgl Sewa:</span><span className="font-medium text-slate-700 dark:text-slate-300">{new Date(b.startDate).toLocaleDateString('id-ID')}</span></div><div className="flex justify-between pt-2 border-t border-dashed dark:border-slate-700"><span className="text-slate-500 font-bold">HPP Vendor:</span><span className="font-black text-red-600 dark:text-red-400">Rp {(b.vendorFee || 0).toLocaleString('id-ID')}</span></div></div>
+                                  </div>
+                              ))}
+                          </div>
+                      ) : (
+                          <div className="space-y-3">
+                              {filteredVendorPayments.map(t => (
+                                  <div key={t.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border dark:border-slate-700 flex items-center justify-between shadow-sm">
+                                      <div className="flex items-center gap-4"><div className="p-2 rounded-xl bg-red-50 text-red-600"><Wallet size={20}/></div><div><p className="text-sm font-bold dark:text-white">{t.description}</p><p className="text-[10px] text-slate-500 font-bold uppercase">{new Date(t.date).toLocaleDateString('id-ID')}</p></div></div>
+                                      <div className="text-right flex items-center gap-4"><div><p className="text-sm font-black text-slate-800 dark:text-white">Rp {t.amount.toLocaleString('id-ID')}</p><span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${t.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{t.status === 'Paid' ? 'LUNAS' : 'PIUTANG'}</span></div>{t.status === 'Pending' && <button onClick={() => handlePayTransaction(t.id)} className="p-2 bg-indigo-600 text-white rounded-lg active:scale-95 transition-all"><ExternalLink size={16}/></button>}</div>
+                                  </div>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+              </div>
           </div>
       )}
     </div>

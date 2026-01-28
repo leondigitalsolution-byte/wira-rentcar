@@ -1,4 +1,3 @@
-
 import { 
   Car, Driver, Partner, Customer, Booking, Transaction, AppSettings, HighSeason, 
   BookingStatus, PaymentStatus 
@@ -344,14 +343,10 @@ const generateDummyDataObjects = () => {
     const today = new Date().toISOString().split('T')[0];
     
     const cars: Car[] = [
-        // Fix: Added missing investorSetoran and driverSalary
-        { id: 'c1', name: 'Toyota Avanza Veloz', plate: 'B 1234 ABC', type: 'MPV', pricing: {'12 Jam (Dalam Kota)': 350000, '24 Jam (Dalam Kota)': 500000, '24 Jam (Luar Kota)': 600000}, price12h: 350000, price24h: 500000, image: 'https://img.mobilmo.com/2019/01/16/f8286LtF/toyota-avanza-2019-3-e028.jpg', status: 'Available', investorSetoran: 0, driverSalary: 150000 },
-        // Fix: Added missing investorSetoran and driverSalary
-        { id: 'c2', name: 'Honda Brio RS', plate: 'B 5678 XYZ', type: 'City Car', pricing: {'12 Jam (Dalam Kota)': 300000, '24 Jam (Dalam Kota)': 400000, '24 Jam (Luar Kota)': 500000}, price12h: 300000, price24h: 400000, image: 'https://asset.honda-indonesia.com/2023/05/05/9670b30a-6029-430c-b24e-72b65727932d.jpg', status: 'Available', investorSetoran: 0, driverSalary: 150000 },
-        // Fix: Added missing investorSetoran and driverSalary
-        { id: 'c3', name: 'Toyota Innova Reborn', plate: 'D 9999 AA', type: 'MPV', pricing: {'12 Jam (Dalam Kota)': 500000, '24 Jam (Dalam Kota)': 750000, '24 Jam (Luar Kota)': 900000}, price12h: 500000, price24h: 750000, image: 'https://images.tokopedia.net/img/cache/700/VqbcmM/2022/8/20/47f73003-7303-4f96-b072-002d28743936.jpg', status: 'Available', partnerId: 'p1', investorSetoran: 300000, driverSalary: 150000 },
-        // Fix: Added missing investorSetoran and driverSalary
-        { id: 'c4', name: 'Toyota Alphard', plate: 'B 1 BOS', type: 'Luxury', pricing: {'12 Jam (Dalam Kota)': 2500000, '24 Jam (Dalam Kota)': 3500000, '24 Jam (Luar Kota)': 4000000}, price12h: 2500000, price24h: 3500000, image: 'https://auto2000.co.id/berita-dan-tips/images/alphard-2023.jpg', status: 'Available', investorSetoran: 0, driverSalary: 250000 },
+        { id: 'c1', name: 'Avanza Veloz', brand: 'Toyota', plate: 'B 1234 ABC', type: 'MPV', pricing: {'12 Jam (Dalam Kota)': 350000, '24 Jam (Dalam Kota)': 500000, '24 Jam (Luar Kota)': 600000}, price12h: 350000, price24h: 500000, image: 'https://img.mobilmo.com/2019/01/16/f8286LtF/toyota-avanza-2019-3-e028.jpg', status: 'Available', investorSetoran: 0, driverSalary: 150000 },
+        { id: 'c2', name: 'Brio RS', brand: 'Honda', plate: 'B 5678 XYZ', type: 'City Car', pricing: {'12 Jam (Dalam Kota)': 300000, '24 Jam (Dalam Kota)': 400000, '24 Jam (Luar Kota)': 500000}, price12h: 300000, price24h: 400000, image: 'https://asset.honda-indonesia.com/2023/05/05/9670b30a-6029-430c-b24e-72b65727932d.jpg', status: 'Available', investorSetoran: 0, driverSalary: 150000 },
+        { id: 'c3', name: 'Innova Reborn', brand: 'Toyota', plate: 'D 9999 AA', type: 'MPV', pricing: {'12 Jam (Dalam Kota)': 500000, '24 Jam (Dalam Kota)': 750000, '24 Jam (Luar Kota)': 900000}, price12h: 500000, price24h: 750000, image: 'https://images.tokopedia.net/img/cache/700/VqbcmM/2022/8/20/47f73003-7303-4f96-b072-002d28743936.jpg', status: 'Available', partnerId: 'p1', investorSetoran: 300000, driverSalary: 150000 },
+        { id: 'c4', name: 'Alphard', brand: 'Toyota', plate: 'B 1 BOS', type: 'Luxury', pricing: {'12 Jam (Dalam Kota)': 2500000, '24 Jam (Dalam Kota)': 3500000, '24 Jam (Luar Kota)': 4000000}, price12h: 2500000, price24h: 3500000, image: 'https://auto2000.co.id/berita-dan-tips/images/alphard-2023.jpg', status: 'Available', investorSetoran: 0, driverSalary: 250000 },
     ];
 
     const drivers: Driver[] = [

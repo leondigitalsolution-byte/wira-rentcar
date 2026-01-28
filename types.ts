@@ -107,6 +107,7 @@ export interface HighSeason {
 export interface Car {
   id: string;
   name: string;
+  brand?: string; // New: Merek Mobil (Toyota, Honda, etc)
   plate: string;
   type: string;
   

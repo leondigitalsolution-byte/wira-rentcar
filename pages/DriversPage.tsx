@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Driver, User, Booking, Car, Transaction, BookingStatus } from '../types';
 import { getStoredData, setStoredData, exportToCSV, processCSVImport, mergeData, compressImage } from '../services/dataService';
 import { generateMonthlyReportPDF } from '../services/pdfService';
-import { Plus, Trash2, Edit2, Phone, DollarSign, X, History, MapPin, Calendar, Clock, CheckCircle, Download, Upload, FileText, Wallet, Filter, Camera, FileSpreadsheet } from 'lucide-react';
+// Added Car as CarIcon to fix missing import error
+import { Plus, Trash2, Edit2, Phone, DollarSign, X, History, MapPin, Calendar, Clock, CheckCircle, Download, Upload, FileText, Wallet, Filter, Camera, FileSpreadsheet, Search, UserCircle, ExternalLink, Car as CarIcon } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 interface Props {
@@ -16,6 +17,7 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
   const [cars, setCars] = useState<Car[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   
+  const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isHistoryModalOpen, setIsHistoryModalOpen] = useState(false);
   
@@ -44,6 +46,18 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
     setCars(getStoredData<Car[]>('cars', []));
     setTransactions(getStoredData<Transaction[]>('transactions', []));
   }, []);
+
+  const filteredDriversList = useMemo(() => {
+    let result = isDriverView 
+      ? drivers.filter(d => d.id === currentUser.linkedDriverId)
+      : drivers;
+
+    if (searchTerm) {
+        const low = searchTerm.toLowerCase();
+        result = result.filter(d => d.name.toLowerCase().includes(low) || d.phone.includes(searchTerm));
+    }
+    return result;
+  }, [drivers, isDriverView, currentUser, searchTerm]);
 
   const openModal = (driver?: Driver) => {
     if (driver) {
@@ -98,7 +112,7 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
         id: editingDriver ? editingDriver.id : Date.now().toString(),
         name,
         phone,
-        dailyRate: editingDriver ? editingDriver.dailyRate : 0, // dailyRate tetap ada di objek tapi tidak di UI
+        dailyRate: editingDriver ? editingDriver.dailyRate : 0,
         status: 'Active',
         image: finalImage
     };
@@ -107,7 +121,7 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
     if (editingDriver) {
         updatedDrivers = drivers.map(d => d.id === editingDriver.id ? newDriver : d);
     } else {
-        updatedDrivers = [...drivers, newDriver];
+        updatedDrivers = [newDriver, ...drivers];
     }
 
     setDrivers(updatedDrivers);
@@ -125,25 +139,22 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
       }
   };
 
-  const driverBookingsRaw = historyDriver ? bookings.filter(b => b.driverId === historyDriver.id && b.status !== BookingStatus.CANCELLED).sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime()) : [];
-  
-  const driverExpensesRaw = historyDriver ? transactions.filter(t => 
-      t.type === 'Expense' && 
-      (t.relatedId === historyDriver.id || t.description.toLowerCase().includes(historyDriver.name.toLowerCase())) &&
-      (t.category === 'Reimbursement' || t.category === 'BBM' || t.category === 'Tol/Parkir' || t.category === 'Gaji')
-  ).sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime()) : [];
+  // History Calculations
+  const filteredDriverBookings = useMemo(() => {
+    if (!historyDriver) return [];
+    let filtered = bookings.filter(b => b.driverId === historyDriver.id && b.status !== BookingStatus.CANCELLED);
+    if (historyStartDate) filtered = filtered.filter(b => b.startDate.split('T')[0] >= historyStartDate);
+    if (historyEndDate) filtered = filtered.filter(b => b.startDate.split('T')[0] <= historyEndDate);
+    return filtered.sort((a,b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+  }, [historyDriver, bookings, historyStartDate, historyEndDate]);
 
-  const filteredDriverBookings = driverBookingsRaw.filter(b => {
-      if (!historyStartDate && !historyEndDate) return true;
-      const date = b.startDate.split('T')[0];
-      return date >= (historyStartDate || '0000-00-00') && date <= (historyEndDate || '9999-12-31');
-  });
-
-  const filteredDriverExpenses = driverExpensesRaw.filter(t => {
-      if (!historyStartDate && !historyEndDate) return true;
-      const date = t.date.split('T')[0];
-      return date >= (historyStartDate || '0000-00-00') && date <= (historyEndDate || '9999-12-31');
-  });
+  const filteredDriverExpenses = useMemo(() => {
+    if (!historyDriver) return [];
+    let filtered = transactions.filter(t => t.type === 'Expense' && t.relatedId === historyDriver.id);
+    if (historyStartDate) filtered = filtered.filter(t => t.date >= historyStartDate);
+    if (historyEndDate) filtered = filtered.filter(t => t.date <= historyEndDate);
+    return filtered.sort((a,b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [historyDriver, transactions, historyStartDate, historyEndDate]);
 
   const handlePayTransaction = (id: string) => {
       navigate('/expenses', { state: { action: 'pay', transactionId: id } });
@@ -173,75 +184,61 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
       exportToCSV(data, `Laporan_Driver_${historyDriver.name}_${activeHistoryTab}`);
   };
 
-  const displayedDrivers = isDriverView 
-    ? drivers.filter(d => d.id === currentUser.linkedDriverId)
-    : drivers;
-
-  const handleExport = () => exportToCSV(drivers, 'Data_Driver_WiraRentCar');
-  const handleImportClick = () => fileInputRef.current?.click();
-  const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if(file) {
-          processCSVImport(file, (data) => {
-              const imported: Driver[] = data.map((d: any) => d as Driver);
-              const merged = mergeData(drivers, imported);
-              setDrivers(merged);
-              setStoredData('drivers', merged);
-              alert('Data driver berhasil diproses!');
-          });
-      }
-  };
-
   return (
     <div className="space-y-6">
-      <div className="flex flex-col md:flex-row justify-between md:items-center gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-slate-800">{isDriverView ? 'Profil Saya' : 'Manajemen Driver'}</h2>
-          <p className="text-slate-500">{isDriverView ? 'Informasi profil dan statistik kinerja Anda.' : 'Kelola data supir, foto dan status driver.'}</p>
-        </div>
-        {!isDriverView && (
-            <div className="flex flex-wrap gap-2">
-                <div className="hidden md:flex gap-2 mr-2">
-                    <input type="file" ref={fileInputRef} className="hidden" accept=".csv" onChange={handleImportFile} />
-                    <button onClick={handleImportClick} className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium">
-                        <Upload size={16} /> Import
-                    </button>
-                    <button onClick={handleExport} className="bg-white border border-slate-300 text-slate-700 hover:bg-slate-50 px-3 py-2 rounded-lg flex items-center gap-2 text-sm font-medium">
-                        <Download size={16} /> Export
-                    </button>
-                </div>
-                <button onClick={() => openModal()} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg flex items-center gap-2">
-                    <Plus size={18} /> Tambah Driver
-                </button>
+      <div className="sticky top-0 z-20 -mx-4 md:-mx-8 px-4 md:px-8 py-4 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-700 shadow-sm">
+          <div className="flex flex-col lg:flex-row justify-between lg:items-center gap-4">
+            <div>
+              <h2 className="text-2xl md:text-3xl font-bold text-slate-800 dark:text-white">{isDriverView ? 'Profil Saya' : 'Manajemen Driver'}</h2>
+              <p className="text-slate-500 dark:text-slate-400 text-xs md:text-sm">Kelola data supir dan statistik kinerja.</p>
             </div>
-        )}
+            
+            <div className="flex flex-wrap items-center gap-3">
+                {!isDriverView && (
+                    <div className="relative flex-1 min-w-[200px] md:w-64">
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+                        <input 
+                            type="text" 
+                            placeholder="Cari driver..." 
+                            className="w-full pl-10 pr-4 py-2 bg-white dark:bg-slate-800 border dark:border-slate-700 rounded-xl text-sm focus:ring-2 focus:ring-indigo-500 outline-none dark:text-white shadow-sm"
+                            value={searchTerm}
+                            onChange={e => setSearchTerm(e.target.value)}
+                        />
+                    </div>
+                )}
+                {!isDriverView && (
+                    <button onClick={() => openModal()} className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2.5 rounded-xl flex items-center gap-2 transition-all font-bold shadow-lg active:scale-95">
+                        <Plus size={20} /> <span className="hidden sm:inline">Tambah Driver</span>
+                    </button>
+                )}
+            </div>
+          </div>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-        {displayedDrivers.map(driver => (
-            <div key={driver.id} className="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow p-5">
-                <div className="flex items-center gap-4 mb-4">
-                    <img src={driver.image} alt={driver.name} className="w-16 h-16 rounded-full bg-slate-200 object-cover border-2 border-slate-100" />
+        {filteredDriversList.map(driver => (
+            <div key={driver.id} className="bg-white dark:bg-slate-800 rounded-2xl shadow-sm border border-slate-200 dark:border-slate-700 overflow-hidden hover:shadow-xl transition-all p-6 group">
+                <div className="flex items-center gap-5 mb-6">
+                    <img src={driver.image} alt={driver.name} className="w-20 h-20 rounded-2xl object-cover border-2 border-slate-100 dark:border-slate-700 shadow-sm" />
                     <div>
-                        <h3 className="font-bold text-lg text-slate-800">{driver.name}</h3>
-                        <div className="flex items-center gap-1 text-sm text-slate-500">
-                             <Phone size={14} /> {driver.phone}
+                        <h3 className="font-black text-xl text-slate-800 dark:text-white tracking-tight uppercase">{driver.name}</h3>
+                        <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400 mt-1">
+                             <Phone size={14} className="text-green-500" /> {driver.phone}
                         </div>
                     </div>
                 </div>
-                
-                <div className="flex flex-col gap-2">
-                    <button onClick={() => openHistoryModal(driver)} className="w-full py-2 text-sm text-indigo-700 bg-indigo-50 hover:bg-indigo-100 border border-indigo-100 rounded-lg flex items-center justify-center gap-2 transition-colors font-medium">
-                        <History size={16} /> Riwayat & Detail
+                <div className="flex flex-col gap-3">
+                    <button onClick={() => openHistoryModal(driver)} className="w-full py-3 text-xs font-black uppercase tracking-widest text-indigo-700 dark:text-indigo-400 bg-indigo-50 dark:bg-indigo-900/20 hover:bg-indigo-100 rounded-xl flex items-center justify-center gap-2 transition-colors">
+                        <History size={16} /> Riwayat Perjalanan
                     </button>
                     {!isDriverView && (
                         <div className="flex gap-2">
-                            <button onClick={() => openModal(driver)} className="flex-1 py-2 text-sm text-slate-600 hover:bg-slate-50 border rounded-lg flex items-center justify-center gap-2">
-                                <Edit2 size={16} /> Edit
+                            <button onClick={() => openModal(driver)} className="flex-1 py-3 text-xs font-black uppercase tracking-widest text-slate-600 dark:text-slate-300 hover:bg-slate-50 border dark:border-slate-700 rounded-xl flex items-center justify-center gap-2">
+                                <Edit2 size={14} /> Edit
                             </button>
                             {isSuperAdmin && (
-                                <button onClick={() => handleDelete(driver.id)} className="flex-1 py-2 text-sm text-red-600 hover:bg-red-50 border border-red-100 rounded-lg flex items-center justify-center gap-2">
-                                    <Trash2 size={16} /> Hapus
+                                <button onClick={() => handleDelete(driver.id)} className="p-3 text-red-600 hover:bg-red-50 border border-red-100 rounded-xl">
+                                    <Trash2 size={18} />
                                 </button>
                             )}
                         </div>
@@ -251,160 +248,125 @@ const DriversPage: React.FC<Props> = ({ currentUser }) => {
         ))}
       </div>
 
+      {/* MODAL INPUT/EDIT */}
       {isModalOpen && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-              <div className="bg-white rounded-xl w-full max-w-lg p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-                  <div className="flex justify-between items-center mb-6">
-                     <h3 className="text-xl font-bold text-slate-800">{editingDriver ? 'Edit Driver' : 'Tambah Driver Baru'}</h3>
-                     <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
+          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+              <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-lg p-8 shadow-2xl border border-slate-200 dark:border-slate-700">
+                  <div className="flex justify-between items-center mb-8">
+                     <h3 className="text-2xl font-black text-slate-800 dark:text-white tracking-tighter uppercase">{editingDriver ? 'Edit Driver' : 'Tambah Driver'}</h3>
+                     <button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-red-600 bg-slate-100 dark:bg-slate-700 rounded-full p-1.5"><X size={24}/></button>
                   </div>
                   <form onSubmit={handleSave} className="space-y-6">
-                      <div className="flex flex-col items-center mb-6">
-                          <label className="block text-sm font-medium text-slate-700 mb-2">Foto Profil {isUploading && '(Mengompres...)'}</label>
-                          <div className="relative w-32 h-32 bg-slate-100 rounded-full border-4 border-slate-50 flex items-center justify-center overflow-hidden group">
-                              {imagePreview ? (
-                                  <>
-                                      <img src={imagePreview} alt="Preview" className="w-full h-full object-cover" />
-                                      <button type="button" onClick={handleRemoveImage} className="absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity text-white" title="Hapus Foto">
-                                          <X size={24} />
-                                      </button>
-                                  </>
-                              ) : (
-                                  <div className="text-center text-slate-400">
-                                      <Camera className="w-10 h-10 mx-auto mb-1" />
-                                      <span className="text-[10px]">Ambil Foto</span>
-                                  </div>
-                              )}
+                      <div className="flex flex-col items-center">
+                          <div className="relative w-32 h-32 bg-slate-100 dark:bg-slate-900 rounded-3xl border-4 border-dashed border-slate-300 dark:border-slate-700 flex items-center justify-center overflow-hidden group hover:border-indigo-500 cursor-pointer">
+                              {imagePreview ? <img src={imagePreview} className="w-full h-full object-cover" /> : <Camera className="w-10 h-10 text-slate-400" />}
                               <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleImageUpload} />
                           </div>
                       </div>
                       <div>
-                          <label className="block text-sm font-medium text-slate-700">Nama Lengkap</label>
-                          <input required type="text" className="w-full border rounded-lg p-2.5 mt-1" value={name} onChange={e => setName(e.target.value)} />
+                          <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Nama Lengkap</label>
+                          <input required type="text" className="w-full border dark:border-slate-700 dark:bg-slate-900 dark:text-white rounded-xl p-3 font-bold" value={name} onChange={e => setName(e.target.value)} />
                       </div>
                       <div>
-                          <label className="block text-sm font-medium text-slate-700">Nomor Telepon</label>
-                          <input required type="tel" className="w-full border rounded-lg p-2.5 mt-1" value={phone} onChange={e => setPhone(e.target.value)} />
+                          <label className="block text-[10px] font-black uppercase text-slate-400 mb-1">Nomor WA</label>
+                          <input required type="tel" className="w-full border dark:border-slate-700 dark:bg-slate-900 dark:text-white rounded-xl p-3 font-bold" value={phone} onChange={e => setPhone(e.target.value)} />
                       </div>
-                      
-                      <div className="flex gap-3 mt-6 pt-4 border-t">
-                          <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-2.5 bg-slate-100 text-slate-700 rounded-lg font-medium">Batal</button>
-                          <button disabled={isUploading} type="submit" className="flex-1 py-2.5 bg-indigo-600 text-white rounded-lg font-bold hover:bg-indigo-700 shadow-lg shadow-indigo-200 disabled:opacity-50">
-                              {isUploading ? 'Memproses...' : 'Simpan'}
-                          </button>
+                      <div className="flex gap-3 mt-8 pt-6 border-t dark:border-slate-700">
+                          <button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-xl font-bold">Batal</button>
+                          <button disabled={isUploading} type="submit" className="flex-1 py-3 bg-indigo-600 text-white rounded-xl font-black uppercase tracking-widest hover:bg-indigo-700">Simpan</button>
                       </div>
                   </form>
               </div>
           </div>
       )}
 
+      {/* MODAL RIWAYAT */}
       {isHistoryModalOpen && historyDriver && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-               <div className="bg-white rounded-xl w-full max-w-2xl p-6 shadow-xl max-h-[90vh] overflow-y-auto">
-                    <div className="flex flex-col sm:flex-row justify-between items-start mb-6 gap-4">
-                         <div className="flex items-center gap-4">
-                            <img src={historyDriver.image} alt={historyDriver.name} className="w-14 h-14 rounded-full bg-slate-200 object-cover border-2 border-slate-100" />
-                            <div>
-                                <h3 className="font-bold text-xl text-slate-800">{historyDriver.name}</h3>
-                                <p className="text-sm text-slate-500">Detail Riwayat & Transaksi</p>
-                            </div>
-                         </div>
-                         <div className="flex gap-2 w-full sm:w-auto">
-                            <button onClick={handleExportExcel} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-green-700">
-                                 <FileSpreadsheet size={16}/> Excel
-                            </button>
-                            <button onClick={handleDownloadReport} className="flex-1 sm:flex-none flex items-center justify-center gap-2 bg-slate-800 text-white px-3 py-1.5 rounded-lg text-xs font-bold hover:bg-slate-900">
-                                 <FileText size={16}/> PDF
-                            </button>
-                            <button onClick={() => setIsHistoryModalOpen(false)} className="text-slate-400 hover:text-slate-600"><X size={24}/></button>
-                         </div>
-                    </div>
+          <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4 backdrop-blur-sm">
+              <div className="bg-white dark:bg-slate-800 rounded-3xl w-full max-w-5xl h-[90vh] flex flex-col shadow-2xl overflow-hidden border border-slate-200 dark:border-slate-700">
+                  <div className="p-6 border-b dark:border-slate-700 flex justify-between items-center bg-slate-50 dark:bg-slate-900/50">
+                      <div className="flex items-center gap-4">
+                          <img src={historyDriver.image} className="w-12 h-12 rounded-xl object-cover" />
+                          <div>
+                              <h3 className="font-black text-slate-800 dark:text-white uppercase tracking-tight">Riwayat: {historyDriver.name}</h3>
+                              <p className="text-xs text-slate-500">Monitoring tugas dan pendapatan driver.</p>
+                          </div>
+                      </div>
+                      <button onClick={() => setIsHistoryModalOpen(false)} className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 text-slate-400 hover:text-red-600 rounded-full transition-colors"><X size={24}/></button>
+                  </div>
 
-                    <div className="flex gap-2 border-b border-slate-100 mb-4">
-                        <button onClick={() => setActiveHistoryTab('trips')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeHistoryTab === 'trips' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Riwayat Perjalanan</button>
-                        <button onClick={() => setActiveHistoryTab('expenses')} className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors ${activeHistoryTab === 'expenses' ? 'border-indigo-600 text-indigo-700' : 'border-transparent text-slate-500 hover:text-slate-700'}`}>Reimbursement & Gaji</button>
-                    </div>
+                  <div className="p-4 border-b dark:border-slate-700 bg-white dark:bg-slate-800 flex flex-wrap items-center gap-4">
+                      <div className="flex items-center gap-2 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl">
+                          <button onClick={() => setActiveHistoryTab('trips')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeHistoryTab === 'trips' ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Tugas Jalan</button>
+                          <button onClick={() => setActiveHistoryTab('expenses')} className={`px-4 py-2 rounded-lg text-xs font-black uppercase tracking-widest transition-all ${activeHistoryTab === 'expenses' ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Gaji & Reimburse</button>
+                      </div>
+                      <div className="h-8 w-px bg-slate-200 dark:border-slate-700 hidden md:block"></div>
+                      <div className="flex items-center gap-2">
+                          <input type="date" className="border dark:border-slate-700 dark:bg-slate-900 rounded-lg p-1.5 text-xs font-bold" value={historyStartDate} onChange={e => setHistoryStartDate(e.target.value)} />
+                          <span className="text-slate-400 text-xs">-</span>
+                          <input type="date" className="border dark:border-slate-700 dark:bg-slate-900 rounded-lg p-1.5 text-xs font-bold" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} />
+                      </div>
+                      <div className="ml-auto flex gap-2">
+                           <button onClick={handleExportExcel} className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 border border-green-200"><FileSpreadsheet size={18}/></button>
+                           <button onClick={handleDownloadReport} className="p-2 bg-indigo-50 text-indigo-600 rounded-lg hover:bg-indigo-100 border border-indigo-200"><Download size={18}/></button>
+                      </div>
+                  </div>
 
-                    <div className="flex items-center gap-2 mb-4 bg-slate-50 p-2 rounded-lg border border-slate-200">
-                        <Filter size={14} className="text-slate-500 ml-1" />
-                        <span className="text-xs font-bold text-slate-700">Filter Tanggal:</span>
-                        <input type="date" className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" value={historyStartDate} onChange={e => setHistoryStartDate(e.target.value)} />
-                        <span className="text-xs text-slate-400">-</span>
-                        <input type="date" className="border border-slate-300 rounded px-2 py-1 text-xs text-slate-600 focus:outline-none focus:ring-1 focus:ring-indigo-500" value={historyEndDate} onChange={e => setHistoryEndDate(e.target.value)} />
-                        {(historyStartDate || historyEndDate) && (
-                            <button onClick={() => {setHistoryStartDate(''); setHistoryEndDate('')}} className="text-xs text-red-500 hover:underline ml-auto mr-2">Reset</button>
-                        )}
-                    </div>
-
-                    <div className="min-h-[300px]">
-                        {activeHistoryTab === 'trips' && (
-                            <div className="space-y-3">
-                                {filteredDriverBookings.length === 0 ? (
-                                    <div className="text-center py-10 text-slate-500 italic">Belum ada riwayat perjalanan pada periode ini.</div>
-                                ) : (
-                                    filteredDriverBookings.map(booking => {
-                                        const car = cars.find(c => c.id === booking.carId);
-                                        return (
-                                            <div key={booking.id} className="p-3 border rounded-lg bg-slate-50 flex justify-between items-center">
-                                                <div>
-                                                    <div className="flex items-center gap-2 mb-1">
-                                                        <span className="text-xs font-bold bg-white border px-1.5 py-0.5 rounded text-slate-700">{booking.id.slice(0,6)}</span>
-                                                        <span className="text-sm font-bold text-slate-800">{booking.customerName}</span>
-                                                    </div>
-                                                    <div className="text-xs text-slate-600 flex items-center gap-2">
-                                                        <span className="flex items-center gap-1"><Calendar size={10}/> {new Date(booking.startDate).toLocaleDateString('id-ID')}</span>
-                                                        <span>-</span>
-                                                        <span className="flex items-center gap-1"><MapPin size={10}/> {booking.destination}</span>
-                                                    </div>
-                                                    <div className="text-xs text-slate-500 mt-1">Unit: {car?.name} ({car?.plate})</div>
-                                                </div>
-                                                <div className="text-right">
-                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${booking.status === BookingStatus.COMPLETED ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>
-                                                        {booking.status}
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        )
-                                    })
-                                )}
-                            </div>
-                        )}
-
-                        {activeHistoryTab === 'expenses' && (
-                            <div className="space-y-3">
-                                {filteredDriverExpenses.length === 0 ? (
-                                    <div className="text-center py-10 text-slate-500 italic">Belum ada riwayat reimbursement/gaji pada periode ini.</div>
-                                ) : (
-                                    filteredDriverExpenses.map(tx => (
-                                        <div key={tx.id} className="p-3 border rounded-lg bg-white flex justify-between items-center">
-                                            <div>
-                                                <div className="text-sm font-bold text-slate-800">{tx.description}</div>
-                                                <div className="text-xs text-slate-500 flex items-center gap-2 mt-1">
-                                                    <span>{new Date(tx.date).toLocaleDateString('id-ID')}</span>
-                                                    <span className={`px-1.5 py-0.5 bg-slate-100 rounded ${tx.category === 'Gaji' ? 'bg-green-100 text-green-700 font-bold' : ''}`}>{tx.category}</span>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div className="text-sm font-bold text-red-600">Rp {tx.amount.toLocaleString('id-ID')}</div>
-                                                <div className="mt-1 flex justify-end gap-2 items-center">
-                                                    {tx.status === 'Paid' ? (
-                                                        <span className="flex items-center justify-end gap-1 text-[10px] text-green-600 font-bold">
-                                                            <CheckCircle size={10}/> Sudah Dibayarkan
-                                                        </span>
-                                                    ) : (
-                                                        <button onClick={() => handlePayTransaction(tx.id)} className="flex items-center gap-1 bg-green-600 text-white px-2 py-1 rounded text-[10px] hover:bg-green-700 transition-colors cursor-pointer">
-                                                            <Wallet size={10}/> Bayar & Upload
-                                                        </button>
-                                                    )}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    ))
-                                )}
-                            </div>
-                        )}
-                    </div>
-               </div>
+                  <div className="flex-1 overflow-y-auto p-6 bg-slate-50 dark:bg-slate-900/30">
+                      {activeHistoryTab === 'trips' ? (
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              {filteredDriverBookings.map(b => {
+                                  const car = cars.find(c => c.id === b.carId);
+                                  return (
+                                      <div key={b.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border dark:border-slate-700 shadow-sm">
+                                          <div className="flex justify-between items-start mb-3">
+                                              <span className="text-[10px] font-black bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300 px-2 py-0.5 rounded uppercase">#{b.id.slice(0,6)}</span>
+                                              <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${b.status === 'Completed' ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700'}`}>{b.status}</span>
+                                          </div>
+                                          <div className="flex items-center gap-3 mb-3">
+                                              <div className="w-10 h-10 bg-slate-100 dark:bg-slate-900 rounded-lg flex items-center justify-center text-slate-400"><CarIcon size={20}/></div>
+                                              <div><p className="text-sm font-bold dark:text-white">{car?.name || 'Unit Vendor'}</p><p className="text-[10px] text-slate-500 font-mono">{car?.plate || '-'}</p></div>
+                                          </div>
+                                          <div className="space-y-2 text-xs border-t dark:border-slate-700 pt-3">
+                                              <div className="flex justify-between">
+                                                  <span className="text-slate-500">Tujuan & Tamu:</span>
+                                                  <span className="font-bold text-slate-700 dark:text-slate-300 text-right">{b.destination} / {b.customerName}</span>
+                                              </div>
+                                              <div className="flex justify-between">
+                                                  <span className="text-slate-500">Tgl Perjalanan:</span>
+                                                  <span className="font-medium text-slate-700 dark:text-slate-300">{new Date(b.startDate).toLocaleDateString('id-ID')}</span>
+                                              </div>
+                                          </div>
+                                      </div>
+                                  );
+                              })}
+                          </div>
+                      ) : (
+                          <div className="space-y-3">
+                              {filteredDriverExpenses.map(t => (
+                                  <div key={t.id} className="bg-white dark:bg-slate-800 p-4 rounded-2xl border dark:border-slate-700 flex items-center justify-between shadow-sm">
+                                      <div className="flex items-center gap-4">
+                                          <div className={`p-2 rounded-xl ${t.category === 'Gaji' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}><Wallet size={20}/></div>
+                                          <div>
+                                              <p className="text-sm font-bold dark:text-white">{t.description}</p>
+                                              <p className="text-[10px] text-slate-500 font-bold uppercase tracking-widest">{t.category} • {new Date(t.date).toLocaleDateString('id-ID')}</p>
+                                          </div>
+                                      </div>
+                                      <div className="text-right flex items-center gap-4">
+                                          <div>
+                                              <p className="text-sm font-black text-slate-800 dark:text-white">Rp {t.amount.toLocaleString('id-ID')}</p>
+                                              <span className={`text-[9px] font-black uppercase px-2 py-0.5 rounded-full ${t.status === 'Paid' ? 'bg-green-100 text-green-700' : 'bg-orange-100 text-orange-700'}`}>{t.status === 'Paid' ? 'LUNAS' : 'PENDING'}</span>
+                                          </div>
+                                          {!isDriverView && t.status === 'Pending' && (
+                                               <button onClick={() => handlePayTransaction(t.id)} className="p-2 bg-indigo-600 text-white rounded-lg active:scale-95 transition-all"><ExternalLink size={16}/></button>
+                                          )}
+                                      </div>
+                                  </div>
+                              ))}
+                          </div>
+                      )}
+                  </div>
+              </div>
           </div>
       )}
     </div>

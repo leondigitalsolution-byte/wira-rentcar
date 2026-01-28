@@ -14,6 +14,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCar, setEditingCar] = useState<Car | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+  const [isSaving, setIsSaving] = useState(false); // Added isSaving state
   const [modalTab, setModalTab] = useState<'umum' | 'harga'>('umum');
   const [isActionMenuOpen, setIsActionMenuOpen] = useState(false);
 
@@ -55,6 +56,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
 
   const openModal = (car?: Car) => {
     setModalTab('umum');
+    setIsSaving(false); // Reset saving state
     if (car) {
         setEditingCar(car);
         setName(car.name);
@@ -112,6 +114,10 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
 
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSaving) return; // Prevent double submission
+    
+    setIsSaving(true); // Start saving
+    
     const finalImage = imagePreview || `https://picsum.photos/300/200?random=${Date.now()}`;
 
     const newCar: Car = {
@@ -138,8 +144,24 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
     }
 
     setCars(updatedCars);
-    await setStoredData('cars', updatedCars);
+    
+    // Close modal and cleanup BEFORE long-running async tasks to ensure UI remains responsive
     setIsModalOpen(false);
+    setEditingCar(null);
+    setName('');
+    setBrand('');
+    setPlate('');
+    setImagePreview(null);
+    setPrices({});
+
+    try {
+        await setStoredData('cars', updatedCars);
+    } catch (error) {
+        console.error("Failed to save fleet data:", error);
+        alert("Data tersimpan lokal namun gagal sinkron ke cloud. Cek koneksi Anda.");
+    } finally {
+        setIsSaving(false);
+    }
   };
 
   const handleDelete = async (id: string) => {
@@ -439,7 +461,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
                               <div className="space-y-4"><h4 className="font-black text-xs uppercase tracking-widest text-slate-400 flex items-center gap-2"><List size={14}/> Harga Paket Sewa (Jual)</h4><div className="grid grid-cols-1 md:grid-cols-2 gap-4 bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-100 dark:border-slate-700">{settings.rentalPackages.map(pkg => (<div key={pkg}><label className="block text-xs font-bold text-slate-500 dark:text-slate-400 mb-1">{pkg}</label><div className="relative"><span className="absolute left-3 top-2 text-sm font-bold text-slate-400">Rp</span><input type="number" className="w-full border dark:border-slate-700 dark:bg-slate-800 dark:text-white rounded-xl p-2 pl-10 font-bold" value={prices[pkg] || ''} onChange={e => handlePriceChange(pkg, Number(e.target.value))} placeholder="0" /></div></div>))}</div></div>
                           </div>
                       )}
-                      <div className="flex gap-3 pt-6 border-t dark:border-slate-700 mt-auto"><button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Batal</button><button disabled={isUploading} type="submit" className="flex-1 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 shadow-xl disabled:opacity-50 active:scale-95 transition-transform">{isUploading ? 'Proses...' : 'Simpan Data'}</button></div>
+                      <div className="flex gap-3 pt-6 border-t dark:border-slate-700 mt-auto"><button type="button" onClick={() => setIsModalOpen(false)} className="flex-1 py-3 bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 font-bold rounded-xl hover:bg-slate-200 dark:hover:bg-slate-600 transition-colors">Batal</button><button disabled={isUploading || isSaving} type="submit" className="flex-1 py-3 bg-indigo-600 text-white font-black uppercase tracking-widest rounded-xl hover:bg-indigo-700 shadow-xl disabled:opacity-50 active:scale-95 transition-transform">{isSaving ? 'Menyimpan...' : isUploading ? 'Proses...' : 'Simpan Data'}</button></div>
                   </form>
               </div>
           </div>

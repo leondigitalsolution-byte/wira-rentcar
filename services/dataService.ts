@@ -4,6 +4,7 @@ import {
 } from '../types';
 import { db } from './firebaseConfig';
 import { collection, getDocs, doc, writeBatch, setDoc, getDoc } from 'firebase/firestore';
+import XLSX from 'xlsx';
 
 export const DEFAULT_SETTINGS: AppSettings = {
   companyName: "Wira Rent Car",
@@ -95,7 +96,8 @@ const KEYS = {
     TRANSACTIONS: 'transactions',
     SETTINGS: 'appSettings',
     HIGH_SEASONS: 'highSeasons',
-    USERS: 'users'
+    USERS: 'users',
+    VENDORS: 'vendors'
 };
 
 export const getStoredData = <T>(key: string, defaultValue: T): T => {
@@ -108,37 +110,24 @@ export const getStoredData = <T>(key: string, defaultValue: T): T => {
     return defaultValue;
 };
 
-// Fungsi Sinkronisasi Koleksi Array (List) ke Firestore
 const syncToFirestore = async (key: string, data: any) => {
-    if (!db) {
-        console.warn("[Firebase] Cannot sync: DB not initialized.");
-        return;
-    }
+    if (!db) return;
     if (!Array.isArray(data)) return; 
 
     try {
         const colRef = collection(db, key);
-        
-        // PENTING: Firestore menolak 'undefined'. Kita harus membersihkannya.
-        // JSON.stringify secara otomatis menghapus key yang bernilai undefined.
-        // JSON.parse mengembalikannya menjadi objek bersih.
         const cleanData = JSON.parse(JSON.stringify(data));
-
-        // 1. Ambil data eksisting di Firestore untuk cek diff
-        // NOTE: This might fail if offline or permissions are wrong
         const snapshot = await getDocs(colRef);
         const newIds = new Set(cleanData.map((item: any) => item.id));
         
         const operations: { type: 'set' | 'delete', ref: any, data?: any }[] = [];
 
-        // Identify Deletes
         snapshot.docs.forEach(docSnap => {
             if (!newIds.has(docSnap.id)) {
                 operations.push({ type: 'delete', ref: docSnap.ref });
             }
         });
 
-        // Identify Writes/Updates
         cleanData.forEach((item: any) => {
             if (item.id) {
                 const docRef = doc(db, key, item.id);
@@ -146,64 +135,40 @@ const syncToFirestore = async (key: string, data: any) => {
             }
         });
 
-        // 2. Commit in Chunks
         const CHUNK_SIZE = 450; 
         for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
             const batch = writeBatch(db);
             const chunk = operations.slice(i, i + CHUNK_SIZE);
             
             chunk.forEach(op => {
-                if (op.type === 'delete') {
-                    batch.delete(op.ref);
-                } else {
-                    batch.set(op.ref, op.data, { merge: true });
-                }
+                if (op.type === 'delete') batch.delete(op.ref);
+                else batch.set(op.ref, op.data, { merge: true });
             });
             
             await batch.commit();
         }
-
-        console.log(`[Firebase] Successfully synced collection ${key} (${operations.length} ops)`);
     } catch (error: any) {
-        if (error.code === 'permission-denied') {
-            console.error(`[Firebase] Permission Denied for ${key}. Check Firestore Security Rules!`);
-        } else {
-            console.error(`[Firebase] Error syncing ${key}:`, error);
-        }
+        console.error(`[Firebase] Error syncing ${key}:`, error);
     }
 };
 
-// Fungsi Khusus untuk Sync Pengaturan (Single Document)
 const syncSettingsToCloud = async (settings: AppSettings) => {
     if (!db) return;
     try {
-        // Bersihkan undefined dari settings juga
         const cleanSettings = JSON.parse(JSON.stringify(settings));
-        
-        // Simpan sebagai dokumen tunggal 'system/appSettings'
         await setDoc(doc(db, 'system', 'appSettings'), cleanSettings);
-        console.log("[Firebase] Settings synced to cloud.");
     } catch (e: any) {
         console.error("Error syncing settings:", e);
-        if (e.code === 'permission-denied') {
-            alert("Gagal menyimpan ke Cloud: Izin Ditolak. Pastikan aturan Firestore diatur ke publik (allow read, write: if true;)");
-        }
     }
 };
 
-// Changed to ASYNC to ensure data is written before reload
 export const setStoredData = async (key: string, data: any) => {
     try {
-        // 1. Simpan ke LocalStorage (Untuk performa UI instan)
         localStorage.setItem(key, JSON.stringify(data));
-        
-        // 2. Sinkron ke Firebase
-        // We trigger this WITHOUT awaiting to prevent UI blocking if network is slow/offline
-        // The data is already safe in LocalStorage
         if (key === KEYS.SETTINGS) {
-            syncSettingsToCloud(data).catch(e => console.warn("[Firebase] Background sync failed:", e));
+            await syncSettingsToCloud(data);
         } else {
-            syncToFirestore(key, data).catch(e => console.warn("[Firebase] Background sync failed:", e));
+            await syncToFirestore(key, data);
         }
     } catch (e) {
         console.error(`Error saving ${key} to localStorage`, e);
@@ -220,194 +185,106 @@ export const checkAvailability = (
 ): boolean => {
     return !bookings.some(b => {
         if (excludeBookingId && b.id === excludeBookingId) return false;
-        // Anti bentrok: Abaikan pesanan yang dicancel
         if (b.status === BookingStatus.CANCELLED) return false;
-        
         if (type === 'car' && b.carId !== resourceId) return false;
         if (type === 'driver' && b.driverId !== resourceId) return false;
-
         const bStart = new Date(b.startDate);
         const bEnd = new Date(b.endDate);
-        
         return (start < bEnd && end > bStart);
     });
 };
 
 export const initializeData = async () => {
-    // 1. Cek Setting Local
     const hasSettings = localStorage.getItem(KEYS.SETTINGS);
     if (!hasSettings) {
         localStorage.setItem(KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
     }
-
-    // 2. Integrasi Firebase (Non-Blocking / Offline First)
-    if (db) {
-        const syncTask = async () => {
-            try {
-                console.log("[Firebase] Connecting to cloud...");
-
-                // A. Sync Settings (Single Document)
-                try {
-                    const settingsRef = doc(db, 'system', 'appSettings');
-                    const settingsSnap = await getDoc(settingsRef);
-                    if (settingsSnap.exists()) {
-                        console.log("[Firebase] Found cloud settings. Syncing DOWN...");
-                        const cloudSettings = settingsSnap.data() as AppSettings;
-                        localStorage.setItem(KEYS.SETTINGS, JSON.stringify(cloudSettings));
-                    } else {
-                        // Jika cloud kosong, push settings default/lokal ke cloud
-                        console.log("[Firebase] Cloud settings empty. Syncing UP...");
-                        const localSettings = getStoredData(KEYS.SETTINGS, DEFAULT_SETTINGS);
-                        await syncSettingsToCloud(localSettings);
-                    }
-                } catch (e) {
-                    console.warn("[Firebase] Settings sync warning:", e);
-                }
-
-                // B. Sync Collections (Arrays) - Added USERS
-                const collectionsToSync = [
-                    KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.CUSTOMERS, 
-                    KEYS.BOOKINGS, KEYS.TRANSACTIONS, KEYS.HIGH_SEASONS, KEYS.USERS
-                ];
-
-                // Attempt to read one collection to verify connection/permissions
-                const carCol = collection(db, KEYS.CARS);
-                const carSnap = await getDocs(carCol);
-
-                if (!carSnap.empty) {
-                    console.log("[Firebase] Found cloud data. Syncing DOWN...");
-                    await Promise.all(collectionsToSync.map(async (key) => {
-                        const colRef = collection(db, key);
-                        const snapshot = await getDocs(colRef);
-                        if (!snapshot.empty) {
-                            const cloudData = snapshot.docs.map(doc => doc.data());
-                            
-                            // FIX: Merge with local data instead of overwriting
-                            // This prevents data loss if local has new items not yet in cloud
-                            const localData = getStoredData(key, []);
-                            const merged = mergeData(localData, cloudData);
-                            
-                            localStorage.setItem(key, JSON.stringify(merged));
-                        }
-                    }));
-                } else {
-                    console.log("[Firebase] Cloud collections empty.");
-                    const hasLocalCars = localStorage.getItem(KEYS.CARS);
-                    if (hasLocalCars) {
-                        console.log("[Firebase] Local data found. Syncing UP to cloud...");
-                        for (const key of collectionsToSync) {
-                            const localData = getStoredData(key, []);
-                            if (localData.length > 0) {
-                                await syncToFirestore(key, localData);
-                            }
-                        }
-                    } else {
-                        console.log("[Firebase] Fresh install. Generating dummy data...");
-                        await generateDummyData();
-                    }
-                }
-            } catch (e: any) {
-                // Only log warning if truly offline/error
-                console.warn("[Firebase] Sync interrupted or offline:", e);
-                if (e.code === 'permission-denied') {
-                    console.error("CRITICAL: Firebase Permission Denied. Data cannot sync!");
-                }
-            }
-        };
-
-        // RACE: Wait maximum 2.5s for sync. If timeout, proceed with local data (Offline Mode)
-        // Background sync might continue if the promise allows, but we unblock the UI.
-        await Promise.race([
-            syncTask(),
-            new Promise(resolve => setTimeout(resolve, 2500))
-        ]);
-    }
     return true;
 };
 
-// Changed to Async
-export const clearAllData = async () => {
-    // Note: We deliberately exclude KEYS.USERS from clearAllData to prevent accidental lockout of admin accounts
-    const keysToRemove = [KEYS.CARS, KEYS.DRIVERS, KEYS.PARTNERS, KEYS.CUSTOMERS, KEYS.BOOKINGS, KEYS.TRANSACTIONS, KEYS.HIGH_SEASONS];
-    
-    // Clear All
-    await Promise.all(keysToRemove.map(async k => {
-        localStorage.removeItem(k);
-        await syncToFirestore(k, []); 
-    }));
-    
-    window.location.reload();
+// === EXCEL EXPORT & IMPORT SERVICES ===
+
+export const exportToExcel = (data: any[], filename: string) => {
+  if (!data || data.length === 0) return;
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const workbook = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(workbook, worksheet, "Sheet1");
+  XLSX.writeFile(workbook, `${filename}.xlsx`);
 };
 
-// GENERATE REAL DUMMY DATA
-const generateDummyDataObjects = () => {
-    const now = Date.now();
-    const today = new Date().toISOString().split('T')[0];
-    
-    const cars: Car[] = [
-        { id: 'c1', name: 'Avanza Veloz', brand: 'Toyota', plate: 'B 1234 ABC', type: 'MPV', pricing: {'12 Jam (Dalam Kota)': 350000, '24 Jam (Dalam Kota)': 500000, '24 Jam (Luar Kota)': 600000}, price12h: 350000, price24h: 500000, image: 'https://img.mobilmo.com/2019/01/16/f8286LtF/toyota-avanza-2019-3-e028.jpg', status: 'Available', investorSetoran: 0, driverSalary: 150000 },
-        { id: 'c2', name: 'Brio RS', brand: 'Honda', plate: 'B 5678 XYZ', type: 'City Car', pricing: {'12 Jam (Dalam Kota)': 300000, '24 Jam (Dalam Kota)': 400000, '24 Jam (Luar Kota)': 500000}, price12h: 300000, price24h: 400000, image: 'https://asset.honda-indonesia.com/2023/05/05/9670b30a-6029-430c-b24e-72b65727932d.jpg', status: 'Available', investorSetoran: 0, driverSalary: 150000 },
-        { id: 'c3', name: 'Innova Reborn', brand: 'Toyota', plate: 'D 9999 AA', type: 'MPV', pricing: {'12 Jam (Dalam Kota)': 500000, '24 Jam (Dalam Kota)': 750000, '24 Jam (Luar Kota)': 900000}, price12h: 500000, price24h: 750000, image: 'https://images.tokopedia.net/img/cache/700/VqbcmM/2022/8/20/47f73003-7303-4f96-b072-002d28743936.jpg', status: 'Available', partnerId: 'p1', investorSetoran: 300000, driverSalary: 150000 },
-        { id: 'c4', name: 'Alphard', brand: 'Toyota', plate: 'B 1 BOS', type: 'Luxury', pricing: {'12 Jam (Dalam Kota)': 2500000, '24 Jam (Dalam Kota)': 3500000, '24 Jam (Luar Kota)': 4000000}, price12h: 2500000, price24h: 3500000, image: 'https://auto2000.co.id/berita-dan-tips/images/alphard-2023.jpg', status: 'Available', investorSetoran: 0, driverSalary: 250000 },
-    ];
-
-    const drivers: Driver[] = [
-        { id: 'd1', name: 'Budi Santoso', phone: '081234567890', dailyRate: 150000, status: 'Active', image: 'https://i.pravatar.cc/150?u=d1' },
-        { id: 'd2', name: 'Asep Saepul', phone: '081987654321', dailyRate: 175000, status: 'Active', image: 'https://i.pravatar.cc/150?u=d2' }
-    ];
-
-    const partners: Partner[] = [
-        { id: 'p1', name: 'Investor Sejahtera', phone: '081233334444', splitPercentage: 70, image: 'https://i.pravatar.cc/150?u=p1' }
-    ];
-
-    const customers: Customer[] = [
-        { id: 'cust1', name: 'Rina Wati', phone: '085677778888', address: 'Jl. Melati No. 5' },
-        { id: 'cust2', name: 'PT. Maju Mundur', phone: '02155556666', address: 'Gedung Cyber Lt. 2' }
-    ];
-
-    const bookings: Booking[] = [
-        {
-            id: 'b1', carId: 'c1', customerId: 'cust1', customerName: 'Rina Wati', customerPhone: '085677778888',
-            startDate: `${today}T08:00:00`, endDate: `${today}T20:00:00`, packageType: '12 Jam (Dalam Kota)', destination: 'Dalam Kota',
-            basePrice: 350000, driverFee: 0, highSeasonFee: 0, deliveryFee: 50000, totalPrice: 400000, amountPaid: 200000,
-            status: BookingStatus.ACTIVE, paymentStatus: PaymentStatus.PARTIAL, notes: 'Jemput di bandara', createdAt: now - 86400000,
-            securityDepositType: 'Barang', securityDepositValue: 0, securityDepositDescription: 'KTP Asli'
-        },
-        {
-            id: 'b2', carId: 'c3', driverId: 'd1', customerId: 'cust2', customerName: 'PT. Maju Mundur', customerPhone: '02155556666',
-            startDate: `${today}T07:00:00`, endDate: `${today}T23:00:00`, packageType: '24 Jam (Luar Kota)', destination: 'Luar Kota',
-            basePrice: 900000, driverFee: 150000, highSeasonFee: 0, deliveryFee: 0, totalPrice: 1050000, amountPaid: 1050000,
-            status: BookingStatus.ACTIVE, paymentStatus: PaymentStatus.PAID, notes: 'Tujuan Bandung', createdAt: now - 172800000,
-            securityDepositType: 'Uang', securityDepositValue: 1000000, securityDepositDescription: 'Transfer BCA'
-        }
-    ];
-
-    const transactions: Transaction[] = [
-        { id: 'tx1', date: today, amount: 200000, type: 'Income', category: 'Rental Payment', description: 'DP Booking Rina Wati', bookingId: 'b1', status: 'Paid' },
-        { id: 'tx2', date: today, amount: 1050000, type: 'Income', category: 'Rental Payment', description: 'Pelunasan PT. Maju Mundur', bookingId: 'b2', status: 'Paid' },
-        { id: 'tx3', date: today, amount: 50000, type: 'Expense', category: 'BBM', description: 'Isi Bensin Awal Avanza', relatedId: 'd1', status: 'Paid' }
-    ];
-
-    return { cars, drivers, partners, customers, bookings, transactions, highSeasons: [] };
+export const exportToCSV = (data: any[], filename: string) => {
+  if (!data || data.length === 0) return;
+  const worksheet = XLSX.utils.json_to_sheet(data);
+  const csv = XLSX.utils.sheet_to_csv(worksheet);
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.setAttribute("href", url);
+  link.setAttribute("download", `${filename}.csv`);
+  link.style.visibility = 'hidden';
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
 };
 
-// Changed to Async
-export const generateDummyData = async () => {
-    const data = generateDummyDataObjects();
-    
-    // Write all to storage and wait for completion
-    // Since setStoredData is now non-blocking for Firebase, this returns quickly after LocalStorage update
-    await Promise.all([
-        setStoredData(KEYS.PARTNERS, data.partners),
-        setStoredData(KEYS.DRIVERS, data.drivers),
-        setStoredData(KEYS.CARS, data.cars),
-        setStoredData(KEYS.CUSTOMERS, data.customers),
-        setStoredData(KEYS.BOOKINGS, data.bookings),
-        setStoredData(KEYS.TRANSACTIONS, data.transactions),
-        setStoredData(KEYS.HIGH_SEASONS, data.highSeasons)
-    ]);
+export const importFromExcel = (file: File, callback: (data: any[]) => void) => {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    const data = new Uint8Array(e.target?.result as ArrayBuffer);
+    const workbook = XLSX.read(data, { type: 'array' });
+    const sheetName = workbook.SheetNames[0];
+    const worksheet = workbook.Sheets[sheetName];
+    const jsonData = XLSX.utils.sheet_to_json(worksheet);
+    callback(jsonData);
+  };
+  reader.readAsArrayBuffer(file);
+};
 
-    window.location.reload();
+export const downloadTemplateExcel = (type: 'armada' | 'pelanggan' | 'driver' | 'investor' | 'vendor') => {
+  let headers: any[] = [];
+  const settings = getStoredData<AppSettings>(KEYS.SETTINGS, DEFAULT_SETTINGS);
+  
+  switch(type) {
+    case 'armada':
+      const carTemplate: any = { 
+        nama_mobil: "Avanza G 2023", 
+        merek: "Toyota", 
+        plat_nomor: "B 1234 ABC", 
+        kategori: "MPV",
+        setoran_investor: 300000,
+        gaji_driver: 150000
+      };
+      // Dynamically add all packages to template
+      settings.rentalPackages.forEach(pkg => {
+          carTemplate[pkg] = 600000; // Example price
+      });
+      headers = [carTemplate];
+      break;
+    case 'pelanggan':
+      headers = [{ nama: "Andi Saputra", whatsapp: "08123456789", alamat: "Jl. Melati No. 10, Jakarta" }];
+      break;
+    case 'driver':
+      headers = [{ nama: "Budi Santoso", whatsapp: "085712345678" }];
+      break;
+    case 'investor':
+      headers = [{ nama: "PT Investama Raya", whatsapp: "08111222333" }];
+      break;
+    case 'vendor':
+      headers = [{ nama_rental: "Abadi Rent", whatsapp: "0899888777", alamat: "Kuta, Bali" }];
+      break;
+  }
+
+  exportToExcel(headers, `Template_Impor_${type}`);
+};
+
+export const mergeData = (existing: any[], imported: any[], key = 'id') => {
+    const map = new Map();
+    existing.forEach(i => map.set(i[key], i));
+    imported.forEach(i => {
+        const id = i[key] || `imp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+        map.set(id, { ...i, [key]: id });
+    });
+    return Array.from(map.values());
 };
 
 export const compressImage = (file: File): Promise<string> => {
@@ -430,48 +307,4 @@ export const compressImage = (file: File): Promise<string> => {
         };
         reader.onerror = reject;
     });
-};
-
-export const exportToCSV = (data: any[], filename: string) => {
-    if (!data || !data.length) return;
-    const headers = Object.keys(data[0]);
-    const csvContent = [
-        headers.join(','),
-        ...data.map(row => headers.map(fieldName => `"${String(row[fieldName]).replace(/"/g, '""')}"`).join(','))
-    ].join('\n');
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.setAttribute("href", url);
-    link.setAttribute("download", `${filename}.csv`);
-    link.click();
-};
-
-export const processCSVImport = (file: File, callback: (data: any[]) => void) => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-        const text = e.target?.result as string;
-        if (!text) return;
-        const lines = text.split('\n');
-        const headers = lines[0].split(',').map(h => h.trim());
-        const result = lines.slice(1).filter(l => l.trim()).map(line => {
-            const currentline = line.match(/(".*?"|[^",\s]+)(?=\s*,|\s*$)/g);
-            const obj: any = {};
-            headers.forEach((h, idx) => {
-                let val = currentline?.[idx] || "";
-                if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1, -1);
-                obj[h] = val;
-            });
-            return obj;
-        });
-        callback(result);
-    };
-    reader.readAsText(file);
-};
-
-export const mergeData = (existing: any[], imported: any[], key = 'id') => {
-    const map = new Map();
-    existing.forEach(i => map.set(i[key], i));
-    imported.forEach(i => map.set(i[key] || Date.now() + Math.random(), { ...i, [key]: i[key] || (Date.now() + Math.random()).toString() }));
-    return Array.from(map.values());
 };

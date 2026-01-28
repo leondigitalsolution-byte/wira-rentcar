@@ -1,8 +1,8 @@
 
 {
-  "name": "WiraRentCar.site",
+  "name": "wirarentcar.site",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,25 +10,29 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@capacitor/android": "^5.7.0",
-    "@capacitor/core": "^5.7.0",
-    "@capacitor/ios": "^5.7.0",
-    "firebase": "^10.8.0",
-    "jspdf": "^2.5.1",
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "firebase": "^11.0.0",
+    "jspdf": "^2.5.2",
     "lucide-react": "^0.469.0",
-    "react": "^18.3.1",
-    "react-dom": "^18.3.1",
-    "react-router-dom": "^6.28.0",
-    "recharts": "^2.15.0"
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.0",
+    "recharts": "^2.15.0",
+    "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/xlsx-0.20.3.tgz"
   },
   "devDependencies": {
-    "@capacitor/assets": "^3.0.4",
-    "@capacitor/cli": "^5.7.0",
-    "@types/node": "^22.0.0",
-    "@types/react": "^18.3.1",
-    "@types/react-dom": "^18.3.1",
+    "@capacitor/assets": "^3.0.5",
+    "@capacitor/cli": "^6.0.0",
+    "@types/node": "^22.10.0",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
     "@vitejs/plugin-react": "^4.3.4",
-    "typescript": "^5.6.3",
-    "vite": "^5.4.11"
+    "typescript": "^5.7.2",
+    "vite": "^6.0.0"
+  },
+  "overrides": {
+    "tar": "7.4.3"
   }
 }

@@ -30,6 +30,8 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [highSeasons, setHighSeasons] = useState<HighSeason[]>([]);
+  // Add missing transactions state
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Timeline State
   const [timelineDate, setTimelineDate] = useState(new Date());
@@ -141,6 +143,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
     setPartners(getStoredData<Partner[]>('partners', []));
     setVendors(getStoredData<Vendor[]>('vendors', []));
     setHighSeasons(getStoredData<HighSeason[]>('highSeasons', []));
+    setTransactions(getStoredData<Transaction[]>('transactions', []));
     setCustomers(getStoredData<Customer[]>('customers', []));
     const loadedSettings = getStoredData<AppSettings>('appSettings', DEFAULT_SETTINGS);
     setSettings(loadedSettings);
@@ -366,7 +369,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
   const handleTimelineCellClick = (carId: string, date: Date) => {
       resetForm();
-      const dateStr = date.toISOString().split('T')[0];
+      // Format as YYYY-MM-DD using local time parts to avoid UTC date shift bug
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      const dateStr = `${year}-${month}-${day}`;
+      
       setSelectedCarId(carId);
       setStartDate(dateStr);
       setStartTime('08:00');

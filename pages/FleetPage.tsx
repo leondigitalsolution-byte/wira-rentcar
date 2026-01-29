@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+// Added React to imports to fix 'Cannot find namespace React' errors
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { Car, Partner, User, AppSettings } from '../types';
 import { getStoredData, setStoredData, DEFAULT_SETTINGS, exportToExcel, importFromExcel, mergeData, compressImage, downloadTemplateExcel } from '../services/dataService';
 import { Plus, Trash2, Edit2, User as UserIcon, Car as CarIcon, Upload, X, Download, FileSpreadsheet, MapPin, Camera, DollarSign, List, Info, Search, Filter, ChevronDown } from 'lucide-react';
@@ -7,6 +8,7 @@ interface Props {
     currentUser: User;
 }
 
+// Added React.FC to define the functional component type
 const FleetPage: React.FC<Props> = ({ currentUser }) => {
   const [cars, setCars] = useState<Car[]>([]);
   const [partners, setPartners] = useState<Partner[]>([]);
@@ -31,7 +33,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
   const [plate, setPlate] = useState('');
   const [type, setType] = useState('MPV');
   const [prices, setPrices] = useState<{[key: string]: number}>({});
-  const [investorSetoran, setInvestorSetoran] = useState(0);
+  const [investorSetoran, setInvestorSetoran, ] = useState(0);
   const [driverSalary, setDriverSalary] = useState(0);
   const [partnerId, setPartnerId] = useState('');
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -95,6 +97,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
       setPrices(prev => ({ ...prev, [pkg]: value }));
   };
 
+  // Added React.ChangeEvent type for image upload event
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -112,6 +115,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
 
   const handleRemoveImage = () => setImagePreview(null);
 
+  // Added React.FormEvent type for form submit event
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (isSaving) return; // Prevent double submission
@@ -229,6 +233,7 @@ const FleetPage: React.FC<Props> = ({ currentUser }) => {
     exportToExcel(dataToExport, `Data_Armada_${new Date().toISOString().split('T')[0]}`);
   };
   
+  // Added React.ChangeEvent type for file input event
   const handleImportFile = (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if(file) {

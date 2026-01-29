@@ -6,7 +6,7 @@ import {
   Filter, Info, Send, Wallet, CheckSquare, Clock as ClockIcon,
   DollarSign, CreditCard, Tag, ArrowRight, History, XCircle,
   Camera, Printer, ChevronLeft, ChevronRight, LayoutList, GanttChart,
-  Building, UserCheck, Inbox, Tag as TagIcon, SearchIcon
+  Building, UserCheck, Inbox, Tag as TagIcon, SearchIcon, Lock
 } from 'lucide-react';
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -30,7 +30,6 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [partners, setPartners] = useState<Partner[]>([]);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [highSeasons, setHighSeasons] = useState<HighSeason[]>([]);
-  // Add missing transactions state
   const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   // Timeline State
@@ -91,6 +90,12 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
   const [packageType, setPackageType] = useState<string>('');
   const [destination, setDestination] = useState<'Dalam Kota' | 'Luar Kota'>('Dalam Kota');
   const [customerNote, setCustomerNote] = useState('');
+
+  // Security Deposit State
+  const [securityDepositType, setSecurityDepositType] = useState<'Uang' | 'Barang'>('Barang');
+  const [securityDepositValue, setSecurityDepositValue] = useState<number>(0);
+  const [securityDepositDescription, setSecurityDepositDescription] = useState('');
+  const [securityDepositImage, setSecurityDepositImage] = useState<string | null>(null);
 
   const [customBasePrice, setCustomBasePrice] = useState<number>(0);
   const [deliveryFee, setDeliveryFee] = useState<number>(0);
@@ -306,6 +311,18 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
     }
   };
 
+  const handleDepositImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+      const file = e.target.files?.[0];
+      if (file) {
+          try {
+              const res = await compressImage(file);
+              setSecurityDepositImage(res);
+          } catch(e) {
+              alert("Gagal memproses gambar jaminan.");
+          }
+      }
+  };
+
   const handleEdit = (booking: Booking) => {
       setEditingBookingId(booking.id);
       setActiveTab('create');
@@ -345,6 +362,11 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       setDestination(booking.destination);
       setPackageType(booking.packageType);
       setCustomerNote(booking.customerNote || '');
+
+      setSecurityDepositType(booking.securityDepositType || 'Barang');
+      setSecurityDepositValue(booking.securityDepositValue || 0);
+      setSecurityDepositDescription(booking.securityDepositDescription || '');
+      setSecurityDepositImage(booking.securityDepositImage || null);
       
       setCustomBasePrice(booking.basePrice / diffDays);
       setDeliveryFee(booking.deliveryFee);
@@ -427,9 +449,10 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
       packageType,
       destination,
       customerNote: customerNote,
-      securityDepositType: 'Barang',
-      securityDepositValue: 0,
-      securityDepositDescription: '',
+      securityDepositType: securityDepositType,
+      securityDepositValue: securityDepositValue,
+      securityDepositDescription: securityDepositDescription,
+      securityDepositImage: securityDepositImage || undefined,
       basePrice: pricing.basePrice,
       driverFee: pricing.driverFee,
       highSeasonFee: pricing.highSeasonFee,
@@ -543,6 +566,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
     setAmountPaid('0'); setActualReturnDate(''); setActualReturnTime(''); setOvertimeFee(0);
     setExtraCost(0); setExtraCostDescription(''); setInternalNotes(''); setPaymentProofImage(null);
     setDiscount(0);
+    setSecurityDepositType('Barang'); setSecurityDepositValue(0); setSecurityDepositDescription(''); setSecurityDepositImage(null);
     setCurrentStatus(BookingStatus.BOOKED);
     setCarError('');
     setConflictingBooking(null);
@@ -576,13 +600,13 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
 
   const saveChecklist = (e: React.FormEvent) => {
       e.preventDefault();
-      if (!checklistBooking || !checkSpeedometerImg) { alert("Foto Speedometer Wajib!"); return; }
+      // Perubahan: Foto Speedometer menjadi Opsional
       const updatedChecklist: VehicleChecklist = {
-          odometer: Number(checkOdometer), fuelLevel: checkFuel, speedometerImage: checkSpeedometerImg,
+          odometer: Number(checkOdometer), fuelLevel: checkFuel, speedometerImage: checkSpeedometerImg || '',
           physicalImages: { front: checkFrontImg || undefined, back: checkBackImg || undefined, left: checkLeftImg || undefined, right: checkRightImg || undefined },
           notes: checkNotes, checkedAt: Date.now(), checkedBy: currentUser.name
       };
-      const updated = bookings.map(b => b.id === checklistBooking.id ? { ...b, checklist: updatedChecklist, status: BookingStatus.ACTIVE } : b);
+      const updated = bookings.map(b => b.id === checklistBooking!.id ? { ...b, checklist: updatedChecklist, status: BookingStatus.ACTIVE } : b);
       setBookings(updated); setStoredData('bookings', updated); setIsChecklistModalOpen(false);
   };
 
@@ -1138,8 +1162,47 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                             </div>
                         </div>
                     </section>
+
                     <section className="space-y-5">
-                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Zap size={18} className="text-red-600"/> 2. Rincian & Biaya</h4>
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Lock size={18} className="text-red-600"/> 2. Jaminan (Guarantee)</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase">Tipe Jaminan</label>
+                                <div className="flex p-1 bg-slate-100 dark:bg-slate-900 rounded-xl">
+                                    <button type="button" onClick={() => setSecurityDepositType('Uang')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${securityDepositType === 'Uang' ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Uang (Cash)</button>
+                                    <button type="button" onClick={() => setSecurityDepositType('Barang')} className={`flex-1 py-2 text-xs font-bold rounded-lg transition-all ${securityDepositType === 'Barang' ? 'bg-white dark:bg-slate-800 text-indigo-600 shadow-sm' : 'text-slate-500'}`}>Barang / Dokumen</button>
+                                </div>
+                            </div>
+                            <div className="space-y-1">
+                                <label className="text-[10px] font-black text-slate-400 uppercase">{securityDepositType === 'Uang' ? 'Nominal Jaminan (Rp)' : 'Estimasi Nilai (Opsional)'}</label>
+                                <input type="number" className="w-full border rounded-xl p-2.5 text-sm font-bold dark:bg-slate-950 dark:text-white" value={securityDepositValue} onChange={e => setSecurityDepositValue(Number(e.target.value))} />
+                            </div>
+                            <div className="space-y-1 md:col-span-2">
+                                <label className="text-[10px] font-black text-slate-400 uppercase">Keterangan Jaminan</label>
+                                <input type="text" className="w-full border rounded-xl p-2.5 text-sm font-bold dark:bg-slate-950 dark:text-white" placeholder="Contoh: KTP Asli + Motor Vario B 1234 ABC" value={securityDepositDescription} onChange={e => setSecurityDepositDescription(e.target.value)} />
+                            </div>
+                            <div className="md:col-span-2">
+                                <label className="block text-[10px] font-black uppercase text-slate-400 tracking-widest mb-2">Foto Bukti Jaminan / Barang</label>
+                                <div className="border-2 border-dashed border-slate-200 dark:border-slate-700 rounded-2xl p-4 text-center hover:bg-slate-50 dark:hover:bg-slate-900 relative h-32 flex flex-col items-center justify-center overflow-hidden">
+                                    {securityDepositImage ? (
+                                        <>
+                                            <img src={securityDepositImage} className="absolute inset-0 w-full h-full object-cover" />
+                                            <button type="button" onClick={() => setSecurityDepositImage(null)} className="absolute top-2 right-2 bg-red-600 text-white p-1 rounded-full shadow-lg z-10"><X size={14} /></button>
+                                        </>
+                                    ) : (
+                                        <div className="text-slate-400 opacity-50 flex flex-col items-center">
+                                            <Camera size={24} className="mb-1" />
+                                            <span className="text-[9px] font-black uppercase">Klik Untuk Upload Foto Jaminan</span>
+                                        </div>
+                                    )}
+                                    <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={handleDepositImageUpload} />
+                                </div>
+                            </div>
+                        </div>
+                    </section>
+
+                    <section className="space-y-5">
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Zap size={18} className="text-red-600"/> 3. Rincian & Biaya</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 items-start">
                             <div className="space-y-4">
                                 <div className="space-y-1">
@@ -1171,7 +1234,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                         </div>
                     </section>
                     <section className="space-y-5">
-                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Wallet size={18} className="text-red-600"/> 3. Pembayaran</h4>
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><Wallet size={18} className="text-red-600"/> 4. Pembayaran</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase">DP / Pelunasan (Masuk)</label>
@@ -1190,7 +1253,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                     </section>
 
                     <section className="space-y-5">
-                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><History size={18} className="text-red-600"/> 4. Pengembalian & Biaya Tambahan</h4>
+                        <h4 className="font-black text-slate-800 dark:text-white flex items-center gap-2 border-b dark:border-slate-700 pb-3 uppercase tracking-widest text-xs"><History size={18} className="text-red-600"/> 5. Pengembalian & Biaya Tambahan</h4>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="space-y-1">
                                 <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Tanggal Kembali (Aktual)</label>
@@ -1364,7 +1427,7 @@ const BookingPage: React.FC<Props> = ({ currentUser }) => {
                                 <div><label className="block text-[10px] font-black text-slate-400 uppercase mb-1">Posisi BBM</label><select className="w-full border-2 dark:border-slate-700 dark:bg-slate-950 dark:text-white rounded-xl p-3 text-sm font-bold bg-white focus:border-red-500 outline-none" value={checkFuel} onChange={e => setCheckFuel(e.target.value)}><option value="Full">FULL</option><option value="3/4">3/4</option><option value="1/2">1/2</option><option value="1/4">1/4</option><option value="Empty">RESERVE</option></select></div>
                             </div>
                             <div>
-                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Foto Dashboard (Wajib)</label>
+                                <label className="block text-[10px] font-black text-slate-400 uppercase mb-2">Foto Dashboard (Opsional)</label>
                                 <div className="border-4 border-dashed border-slate-200 dark:border-slate-700 rounded-3xl p-6 text-center hover:bg-slate-50 dark:hover:bg-slate-900 relative h-56 flex flex-col items-center justify-center overflow-hidden">
                                     {checkSpeedometerImg ? <img src={checkSpeedometerImg} className="absolute inset-0 w-full h-full object-cover" /> : <div className="text-slate-400 opacity-50"><Gauge size={48} className="mx-auto mb-3" /><span className="text-xs font-black uppercase">Klik Untuk Upload</span></div>}
                                     <input type="file" accept="image/*" className="absolute inset-0 opacity-0 cursor-pointer" onChange={(e) => handleChecklistImageUpload('speedometer', e)} />

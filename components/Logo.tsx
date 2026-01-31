@@ -15,7 +15,7 @@ export const Logo = ({ className = "h-12 w-auto", src }: { className?: string, s
 
 export const LogoText = ({ title }: { title?: string }) => {
   // Split title roughly or display as is
-  const displayTitle = title || "BERSAMA RENT CAR";
+  const displayTitle = title || "WIRA RENT CAR";
   
   return (
     <div className="flex flex-col justify-center leading-none select-none">

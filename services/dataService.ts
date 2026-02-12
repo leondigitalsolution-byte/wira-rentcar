@@ -14,72 +14,12 @@ export const DEFAULT_SETTINGS: AppSettings = {
   phone: '0851-9068-0660',
   email: 'admin@wirarentcar.com',
   website: 'wirarentcar.com',
-  invoiceFooter: 'Terima kasih atas kepercayaan Anda menggunakan jasa kami.',
+  invoiceFooter: 'Terika kasih atas kepercayaan Anda menggunakan jasa kami.',
   themeColor: 'red',
   darkMode: false,
   paymentTerms: '1. Pembayaran DP minimal 30% saat booking.\n2. Pelunasan dilakukan saat serah terima unit.\n3. Pembayaran via Transfer BCA 1234567890 a.n Wira Rent Car.',
-  termsAndConditions: `1. Persyaratan Sewa (Lepas Kunci)
-A. Untuk penyewaan tanpa pengemudi (self-drive), Penyewa wajib menyerahkan dokumen asli sebagai jaminan keamanan yang akan dikembalikan setelah masa sewa berakhir:
-B. Wajib: E-KTP Asli Penyewa.
-C. Wajib: SIM A yang masih berlaku (diperlihatkan & difotokopi/foto).
-D. Jaminan Tambahan (Pilih salah satu):
-E. Sepeda motor + STNK asli (atas nama Penyewa/Keluarga).
-F. NPWP / Kartu Keluarga / Kartu Identitas Pegawai (Karpeg).
-G. Uang deposit jaminan (Refundable) sebesar Rp1.000.000.
-H. Pihak Rental berhak menolak permohonan sewa jika identitas dirasa kurang meyakinkan atau tidak valid.
-
-2. Pembayaran dan Durasi Sewa
-A. Booking Fee (DP): Penyewa wajib membayar uang muka minimal 30-50% dari total biaya sewa untuk mengamankan jadwal.
-B. Pelunasan: Sisa pembayaran wajib dilunasi sebelum serah terima kunci mobil.
-C. Perhitungan Waktu:
-D. Paket 12 Jam / 24 Jam (Full Day).
-E. Keterlambatan pengembalian (Overtime) dikenakan denda sebesar 10% per jam dari harga sewa harian.
-F. Keterlambatan lebih dari 5 jam dihitung sebagai sewa 1 hari penuh.
-G. Pembatalan:
-I. Pembatalan H-1: DP hangus 50%.
-Ii. Pembatalan pada hari H: DP hangus 100%.
-
-3. Tanggung Jawab Penyewa
-A. Kondisi Mobil: Mobil diserahkan dalam keadaan bersih dan laik jalan. Penyewa wajib mengembalikan dalam kondisi kebersihan yang sama. (Jika kotor berlebih/bau rokok tajam, dikenakan biaya salon sebesar Rp650.000,-).
-B. Bahan Bakar (BBM): Sistem pengembalian BBM adalah posisi sama dengan saat pengambilan (Return to same level).
-C. Penggunaan: Mobil hanya boleh digunakan sesuai peruntukan jalan raya (bukan untuk offroad, balapan, atau mengangkut barang yang merusak interior/bau menyengat seperti durian/ikan basah tanpa wadah kedap udara).
-
-4. Kerusakan dan Kecelakaan
-A. Kerusakan Ringan (Lecet/Penyok): Penyewa bertanggung jawab penuh atas biaya perbaikan di bengkel yang ditunjuk oleh Pihak Rental.
-B. Kerusakan Berat/Kecelakaan:
-i. Penyewa menanggung seluruh biaya perbaikan.
-ii. Biaya Masa Tunggu (Idle Cost): Penyewa wajib membayar biaya sewa harian selama mobil berada di bengkel (karena mobil tidak bisa beroperasi/menghasilkan uang).
-C. Kehilangan: Jika terjadi kehilangan unit akibat kelalaian Penyewa (kunci tertinggal, parkir sembarangan), Penyewa wajib mengganti unit dengan spesifikasi setara atau membayar tunai seharga mobil tersebut di pasaran.
-
-5. Larangan Keras
-A. Penyewa dilarang keras untuk:
-B. Menggadaikan mobil.
-C. Menyewakan kembali ke pihak ketiga (over-rent).
-D. Menggunakan mobil untuk tindak kejahatan/kriminal.
-E. Mengubah bentuk atau memodifikasi komponen mobil.
-
-6. Force Majeure
-Pihak Rental tidak bertanggung jawab atas kerugian Penyewa yang disebabkan oleh kejadian di luar kendali (bencana alam, huru-hara, atau kerusakan mesin murni karena faktor usia kendaraan yang bukan akibat kelalaian penggunaan).`,
-  whatsappTemplate: `*INVOICE & BOOKING CONFIRMATION*
-🏢 *{company}*
-
-Halo Kak *{name}*,
-Terima kasih telah mempercayakan perjalanan Anda bersama kami. Berikut rincian booking Anda:
-
-📄 *No. Invoice:* {invoiceNo}
-🚗 *Unit:* {unit}
-📅 *Mulai:* {startDate}
-📅 *Selesai:* {endDate}
-
---------------------------------
-💰 *Total Tagihan:* Rp {total}
-✅ *Sudah Bayar:* Rp {paid}
-⚠️ *Sisa Tagihan: Rp {remaining}*
---------------------------------
-Status Pembayaran: *{status}*
-
-_Mohon konfirmasi jika data sudah sesuai._
-{footer}`,
+  termsAndConditions: `1. Persyaratan Sewa (Lepas Kunci)\nA. Untuk penyewaan tanpa pengemudi (self-drive), Penyewa wajib menyerahkan dokumen asli sebagai jaminan keamanan yang akan dikembalikan setelah masa sewa berakhir:\nB. Wajib: E-KTP Asli Penyewa.\nC. Wajib: SIM A yang masih berlaku (diperlihatkan & difotokopi/foto).\nD. Jaminan Tambahan (Pilih salah satu):\nE. Sepeda motor + STNK asli (atas nama Penyewa/Keluarga).\nF. NPWP / Kartu Keluarga / Kartu Identitas Pegawai (Karpeg).\nG. Uang deposit jaminan (Refundable) sebesar Rp1.000.000.\nH. Pihak Rental berhak menolak permohonan sewa jika identitas dirasa kurang meyakinkan atau tidak valid.\n\n2. Pembayaran dan Durasi Sewa\nA. Booking Fee (DP): Penyewa wajib membayar uang muka minimal 30-50% dari total biaya sewa untuk mengamankan jadwal.\nB. Pelunasan: Sisa pembayaran wajib dilunasi sebelum serah terima kunci mobil.\nC. Perhitungan Waktu:\nD. Paket 12 Jam / 24 Jam (Full Day).\nE. Keterlambatan pengembalian (Overtime) dikenakan denda sebesar 10% per jam dari harga sewa harian.\nF. Keterlambatan lebih dari 5 jam dihitung sebagai sewa 1 hari penuh.\nG. Pembatalan:\nI. Pembatalan H-1: DP hangus 50%.\nIi. Pembatalan pada hari H: DP hangus 100%.\n\n3. Tanggung Jawab Penyewa\nA. Kondisi Mobil: Mobil diserahkan dalam keadaan bersih dan laik jalan. Penyewa wajib mengembalikan dalam kondisi kebersihan yang sama. (Jika kotor berlebih/bau rokok tajam, dikenakan biaya salon sebesar Rp650.000,-).\nB. Bahan Bakar (BBM): Sistem pengembalian BBM adalah posisi sama dengan saat pengambilan (Return to same level).\nC. Penggunaan: Mobil hanya boleh digunakan sesuai peruntukan jalan raya (bukan untuk offroad, balapan, atau mengangkut barang yang merusak interior/bau menyengat seperti durian/ikan basah tanpa wadah kedap udara).\n\n4. Kerusakan dan Kecelakaan\nA. Kerusakan Ringan (Lecet/Penyok): Penyewa bertanggung jawab penuh atas biaya perbaikan di bengkel yang ditunjuk oleh Pihak Rental.\nB. Kerusakan Berat/Kecelakaan:\ni. Penyewa menanggung seluruh biaya perbaikan.\nii. Biaya Masa Tunggu (Idle Cost): Penyewa wajib membayar biaya sewa harian selama mobil berada di bengkel (karena mobil tidak bisa beroperasi/menghasilkan uang).\nC. Kehilangan: Jika terjadi kehilangan unit akibat kelalaian Penyewa (kunci tertinggal, parkir sembarangan), Penyewa wajib mengganti unit dengan spesifikasi setara atau membayar tunai seharga mobil tersebut di pasaran.\n\n5. Larangan Keras\nA. Penyewa dilarang keras untuk:\nB. Menggadaikan mobil.\nC. Menyewakan kembali ke pihak ketiga (over-rent).\nD. Menggunakan mobil untuk tindak kejahatan/kriminal.\nE. Mengubah bentuk atau memodifikasi komponen mobil.\n\n6. Force Majeure\nPihak Rental tidak bertanggung jawab atas kerugian Penyewa yang disebabkan oleh kejadian di luar kendali (bencana alam, huru-hara, atau kerusakan mesin murni karena faktor usia kendaraan yang bukan akibat kelalaian penggunaan).`,
+  whatsappTemplate: `*INVOICE & BOOKING CONFIRMATION*\n🏢 *{company}*\n\nHalo Kak *{name}*,\nTerima kasih telah mempercayakan perjalanan Anda bersama kami. Berikut rincian booking Anda:\n\n📄 *No. Invoice:* {invoiceNo}\n🚗 *Unit:* {unit}\n📅 *Mulai:* {startDate}\n📅 *Selesai:* {endDate}\n\n--------------------------------\n💰 *Total Tagihan:* Rp {total}\n✅ *Sudah Bayar:* Rp {paid}\n⚠️ *Sisa Tagihan: Rp {remaining}*\n--------------------------------\nStatus Pembayaran: *{status}*\n\n_Mohon konfirmasi jika data sudah sesuai._\n{footer}`,
   carCategories: ['MPV', 'SUV', 'Sedan', 'City Car', 'Luxury', 'Minibus'],
   rentalPackages: ['12 Jam (Dalam Kota)', '24 Jam (Dalam Kota)', '24 Jam (Luar Kota)'],
   overtimeType: 'Percentage',
@@ -110,26 +50,19 @@ export const getStoredData = <T>(key: string, defaultValue: T): T => {
     return defaultValue;
 };
 
-// --- DUAL SYNC ENGINE ---
-// 1. Write to Local Storage (Immediate UI update)
-// 2. Push to Supabase (Async Cloud Backup)
 export const setStoredData = async (key: string, data: any) => {
     try {
-        // 1. Local Write
         localStorage.setItem(key, JSON.stringify(data));
 
-        // 2. Cloud Sync (Fire and Forget)
         if (supabase) {
-            // Note: This assumes the data is an array of objects with an 'id' field
-            // which maps 1:1 to Supabase tables.
-            // For settings (object), we wrap it or handle differently.
+            // MAPPING: Local key 'appSettings' map to Supabase table 'settings'
+            const tableName = key === KEYS.SETTINGS ? 'settings' : key;
             
             if (key === KEYS.SETTINGS) {
                  await supabase.from('settings').upsert({ id: 'global', config: data });
             } else if (Array.isArray(data)) {
-                 // Upsert batch data
-                 const { error } = await supabase.from(key).upsert(data);
-                 if (error) console.error(`Supabase sync error for ${key}:`, error);
+                 const { error } = await supabase.from(tableName).upsert(data);
+                 if (error) console.error(`Supabase sync error for ${tableName}:`, error);
             }
         }
     } catch (e) {
@@ -162,17 +95,18 @@ export const initializeData = async () => {
         localStorage.setItem(KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
     }
 
-    // HYDRATION FROM SUPABASE
-    // If online, fetch latest data from cloud and update local storage
     if (supabase) {
         try {
             console.log("Syncing data from Cloud...");
             for (const key of Object.values(KEYS)) {
+                // Table mapping for settings
+                const tableName = key === KEYS.SETTINGS ? 'settings' : key;
+                
                 if (key === KEYS.SETTINGS) {
                     const { data } = await supabase.from('settings').select('config').eq('id', 'global').single();
                     if (data?.config) localStorage.setItem(key, JSON.stringify(data.config));
                 } else {
-                    const { data } = await supabase.from(key).select('*');
+                    const { data } = await supabase.from(tableName).select('*');
                     if (data) localStorage.setItem(key, JSON.stringify(data));
                 }
             }
@@ -184,8 +118,6 @@ export const initializeData = async () => {
 
     return true;
 };
-
-// === EXCEL EXPORT & IMPORT SERVICES ===
 
 export const exportToExcel = (data: any[], filename: string) => {
   if (!data || data.length === 0) return;
@@ -269,8 +201,6 @@ export const mergeData = (existing: any[], imported: any[], key = 'id') => {
     return Array.from(map.values());
 };
 
-// OPTIMIZED IMAGE COMPRESSION (Max 600px, 0.5 quality)
-// Prevents LocalStorage Quota Exceeded and speeds up uploads
 export const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -280,13 +210,12 @@ export const compressImage = (file: File): Promise<string> => {
             img.src = event.target?.result as string;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 600; // Reduced from 800
+                const MAX_WIDTH = 600; 
                 const scaleSize = MAX_WIDTH / img.width;
                 canvas.width = MAX_WIDTH;
                 canvas.height = img.height * scaleSize;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-                // Reduced quality from 0.7 to 0.5
                 resolve(canvas.toDataURL('image/jpeg', 0.5));
             };
         };

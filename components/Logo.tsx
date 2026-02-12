@@ -3,16 +3,16 @@ import React from 'react';
 
 export const Logo = ({ className = "h-12 w-auto", src }: { className?: string, src?: string | null }) => (
   <div className={className}>
-    {/* Menggunakan src dari props (database) atau fallback ke logo-tab.png */}
+    {/* Menggunakan src dari props (database) atau fallback ke logo.png */}
     <img 
-      src={src || "logo-tab.png"} 
+      src={src || "logo.png"} 
       alt="Wira Rent Car Logo" 
       className="w-full h-full object-contain"
       onError={(e) => {
         // Jika file lokal juga hilang, tampilkan icon mobil standar sebagai pengaman terakhir
         const target = e.target as HTMLImageElement;
-        if (target.src.indexOf('logo-tab.png') === -1) {
-            target.src = "logo-tab.png";
+        if (target.src.indexOf('logo.png') === -1) {
+            target.src = "logo.png";
         }
       }}
     />

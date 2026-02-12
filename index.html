@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="id">
   <head>
@@ -13,7 +14,7 @@
     <link rel="icon" href="logo-tab.png" />
     
     <title>Wira Rent Car - Management System</title>
-    <!-- Polyfill for Import Maps (Ensures compatibility on older mobile browsers) -->
+    <!-- Polyfill for Import Maps -->
     <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.1/dist/es-module-shims.js"></script>
 
     <script src="https://cdn.tailwindcss.com"></script>
@@ -34,24 +35,25 @@
       body { font-family: 'Inter', sans-serif; background-color: #ffffff; overscroll-behavior-y: none; user-select: none; -webkit-tap-highlight-color: transparent; }
       .no-scrollbar::-webkit-scrollbar { display: none; }
       body { overscroll-behavior-y: contain; }
-      /* Fix for notched phones */
       .pt-safe { padding-top: env(safe-area-inset-top); }
       .pb-safe { padding-bottom: env(safe-area-inset-bottom); }
     </style>
 <script type="importmap">
 {
   "imports": {
-    "react": "https://esm.sh/react@^19.2.3",
-    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
-    "react/": "https://esm.sh/react@^19.2.3/",
-    "jspdf": "https://esm.sh/jspdf@2.5.1",
+    "react": "https://esm.sh/react@19.0.0",
+    "react-dom": "https://esm.sh/react-dom@19.0.0",
+    "react-dom/": "https://esm.sh/react-dom@19.0.0/",
+    "jspdf": "https://esm.sh/jspdf@2.5.2",
     "xlsx": "https://cdn.sheetjs.com/xlsx-0.20.3/package/xlsx.mjs",
-    "firebase/": "https://esm.sh/firebase@^12.8.0/",
-    "react-router-dom": "https://esm.sh/react-router-dom@^7.12.0",
-    "lucide-react": "https://esm.sh/lucide-react@^0.562.0",
-    "recharts": "https://esm.sh/recharts@^3.7.0",
-    "vite": "https://esm.sh/vite@^7.3.1",
-    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.2"
+    "@supabase/supabase-js": "https://esm.sh/@supabase/supabase-js@2.39.3",
+    "react-router-dom": "https://esm.sh/react-router-dom@7.1.0",
+    "lucide-react": "https://esm.sh/lucide-react@0.469.0",
+    "recharts": "https://esm.sh/recharts@2.15.0",
+    "react/": "https://esm.sh/react@^19.2.4/",
+    "firebase/": "https://esm.sh/firebase@^12.9.0/",
+    "@vitejs/plugin-react": "https://esm.sh/@vitejs/plugin-react@^5.1.4",
+    "vite": "https://esm.sh/vite@^7.3.1"
   }
 }
 </script>
@@ -59,7 +61,6 @@
   <body>
     <div id="root"></div>
     <script type="module">
-      // Register Service Worker for PWA
       if ('serviceWorker' in navigator) {
         window.addEventListener('load', () => {
           navigator.serviceWorker.register('/sw.js').catch(err => console.log('SW registration failed:', err));

@@ -13,7 +13,7 @@
     "@capacitor/android": "^6.0.0",
     "@capacitor/core": "^6.0.0",
     "@capacitor/ios": "^6.0.0",
-    "firebase": "^11.0.0",
+    "@supabase/supabase-js": "^2.39.3",
     "jspdf": "^2.5.2",
     "lucide-react": "^0.469.0",
     "react": "^19.0.0",

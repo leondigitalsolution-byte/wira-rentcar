@@ -1,6 +1,7 @@
 
-import { User, Driver } from '../types';
+import { User } from '../types';
 import { getStoredData, setStoredData } from './dataService';
+import { supabase } from './supabaseClient';
 
 const INITIAL_USERS: User[] = [
   {
@@ -36,24 +37,17 @@ const INITIAL_USERS: User[] = [
   }
 ];
 
-// Initialize users in local storage if not exist, OR update if roles are stale
 const initAuth = () => {
     const storedUsers = localStorage.getItem('users');
     
     if (!storedUsers) {
         setStoredData('users', INITIAL_USERS);
     } else {
-        // Fix for missing Settings menu: 
-        // Check if the 'super' user has the correct 'superadmin' role in storage.
-        // If not (due to old data), force update it.
         const users = JSON.parse(storedUsers) as User[];
         const superUser = users.find(u => u.username === 'super');
-        
-        // Also ensure dummy driver exists for testing
         const driverUser = users.find(u => u.username === 'driver');
         
         if (!superUser || superUser.role !== 'superadmin' || !driverUser) {
-            // Merge initial users with stored users to ensure superadmin/driver exists
             const mergedUsers = [...INITIAL_USERS];
             users.forEach(u => {
                 if (!mergedUsers.find(mu => mu.username === u.username)) {
@@ -65,11 +59,12 @@ const initAuth = () => {
     }
 }
 
-export const login = (identifier: string, password: string): User | null => {
+// Updated to Async to support future Supabase Auth integration
+export const login = async (identifier: string, password: string): Promise<User | null> => {
   initAuth();
-  const users = getStoredData<User[]>('users', INITIAL_USERS);
   
-  // Allow login by Username, Email, or Phone
+  // 1. Try Local Login (Offline First / Legacy)
+  const users = getStoredData<User[]>('users', INITIAL_USERS);
   const user = users.find(u => 
     (u.username === identifier || u.email === identifier || u.phone === identifier) && 
     u.password === password
@@ -80,11 +75,34 @@ export const login = (identifier: string, password: string): User | null => {
     localStorage.setItem('currentUser', JSON.stringify(userWithoutPassword));
     return userWithoutPassword as User;
   }
+
+  // 2. Future: Try Supabase Auth
+  if (supabase) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+          email: identifier,
+          password: password
+      });
+      if (data.user && !error) {
+          // Map Supabase user to App User type (simplified)
+          const sbUser: User = {
+              id: data.user.id,
+              username: data.user.email?.split('@')[0] || 'user',
+              name: data.user.user_metadata.full_name || 'User',
+              email: data.user.email || '',
+              role: data.user.user_metadata.role || 'admin',
+              image: data.user.user_metadata.avatar_url
+          };
+          localStorage.setItem('currentUser', JSON.stringify(sbUser));
+          return sbUser;
+      }
+  }
+
   return null;
 };
 
-export const logout = () => {
+export const logout = async () => {
   localStorage.removeItem('currentUser');
+  if (supabase) await supabase.auth.signOut();
 };
 
 export const getCurrentUser = (): User | null => {

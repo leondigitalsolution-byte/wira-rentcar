@@ -32,16 +32,21 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
     setError('');
     setLoading(true);
     
-    // Simulate network delay for effect
-    await new Promise(resolve => setTimeout(resolve, 800));
+    try {
+        // Simulate network delay for effect
+        await new Promise(resolve => setTimeout(resolve, 800));
 
-    const user = login(username, password);
-    if (user) {
-      onLogin();
-      navigate('/');
-    } else {
-      setError('Akses Ditolak: Kredensial tidak valid.');
-      setLoading(false);
+        const user = await login(username, password);
+        if (user) {
+          onLogin();
+          navigate('/');
+        } else {
+          setError('Akses Ditolak: Kredensial tidak valid.');
+          setLoading(false);
+        }
+    } catch (e) {
+        setError('Terjadi kesalahan sistem.');
+        setLoading(false);
     }
   };
 

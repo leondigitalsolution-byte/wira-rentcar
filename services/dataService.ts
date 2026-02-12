@@ -1,9 +1,9 @@
+
 import { 
   Car, Driver, Partner, Customer, Booking, Transaction, AppSettings, HighSeason, 
   BookingStatus, PaymentStatus 
 } from '../types';
-import { db } from './firebaseConfig';
-import { collection, getDocs, doc, writeBatch, setDoc, getDoc } from 'firebase/firestore';
+import { supabase } from './supabaseClient';
 import XLSX from 'xlsx';
 
 export const DEFAULT_SETTINGS: AppSettings = {
@@ -110,68 +110,30 @@ export const getStoredData = <T>(key: string, defaultValue: T): T => {
     return defaultValue;
 };
 
-const syncToFirestore = async (key: string, data: any) => {
-    if (!db) return;
-    if (!Array.isArray(data)) return; 
-
-    try {
-        const colRef = collection(db, key);
-        const cleanData = JSON.parse(JSON.stringify(data));
-        const snapshot = await getDocs(colRef);
-        const newIds = new Set(cleanData.map((item: any) => item.id));
-        
-        const operations: { type: 'set' | 'delete', ref: any, data?: any }[] = [];
-
-        snapshot.docs.forEach(docSnap => {
-            if (!newIds.has(docSnap.id)) {
-                operations.push({ type: 'delete', ref: docSnap.ref });
-            }
-        });
-
-        cleanData.forEach((item: any) => {
-            if (item.id) {
-                const docRef = doc(db, key, item.id);
-                operations.push({ type: 'set', ref: docRef, data: item });
-            }
-        });
-
-        const CHUNK_SIZE = 450; 
-        for (let i = 0; i < operations.length; i += CHUNK_SIZE) {
-            const batch = writeBatch(db);
-            const chunk = operations.slice(i, i + CHUNK_SIZE);
-            
-            chunk.forEach(op => {
-                if (op.type === 'delete') batch.delete(op.ref);
-                else batch.set(op.ref, op.data, { merge: true });
-            });
-            
-            await batch.commit();
-        }
-    } catch (error: any) {
-        console.error(`[Firebase] Error syncing ${key}:`, error);
-    }
-};
-
-const syncSettingsToCloud = async (settings: AppSettings) => {
-    if (!db) return;
-    try {
-        const cleanSettings = JSON.parse(JSON.stringify(settings));
-        await setDoc(doc(db, 'system', 'appSettings'), cleanSettings);
-    } catch (e: any) {
-        console.error("Error syncing settings:", e);
-    }
-};
-
+// --- DUAL SYNC ENGINE ---
+// 1. Write to Local Storage (Immediate UI update)
+// 2. Push to Supabase (Async Cloud Backup)
 export const setStoredData = async (key: string, data: any) => {
     try {
+        // 1. Local Write
         localStorage.setItem(key, JSON.stringify(data));
-        if (key === KEYS.SETTINGS) {
-            await syncSettingsToCloud(data);
-        } else {
-            await syncToFirestore(key, data);
+
+        // 2. Cloud Sync (Fire and Forget)
+        if (supabase) {
+            // Note: This assumes the data is an array of objects with an 'id' field
+            // which maps 1:1 to Supabase tables.
+            // For settings (object), we wrap it or handle differently.
+            
+            if (key === KEYS.SETTINGS) {
+                 await supabase.from('settings').upsert({ id: 'global', config: data });
+            } else if (Array.isArray(data)) {
+                 // Upsert batch data
+                 const { error } = await supabase.from(key).upsert(data);
+                 if (error) console.error(`Supabase sync error for ${key}:`, error);
+            }
         }
     } catch (e) {
-        console.error(`Error saving ${key} to localStorage`, e);
+        console.error(`Error saving ${key}`, e);
     }
 };
 
@@ -199,6 +161,27 @@ export const initializeData = async () => {
     if (!hasSettings) {
         localStorage.setItem(KEYS.SETTINGS, JSON.stringify(DEFAULT_SETTINGS));
     }
+
+    // HYDRATION FROM SUPABASE
+    // If online, fetch latest data from cloud and update local storage
+    if (supabase) {
+        try {
+            console.log("Syncing data from Cloud...");
+            for (const key of Object.values(KEYS)) {
+                if (key === KEYS.SETTINGS) {
+                    const { data } = await supabase.from('settings').select('config').eq('id', 'global').single();
+                    if (data?.config) localStorage.setItem(key, JSON.stringify(data.config));
+                } else {
+                    const { data } = await supabase.from(key).select('*');
+                    if (data) localStorage.setItem(key, JSON.stringify(data));
+                }
+            }
+            console.log("Data sync complete.");
+        } catch (e) {
+            console.warn("Cloud sync failed, using local data.", e);
+        }
+    }
+
     return true;
 };
 
@@ -254,9 +237,8 @@ export const downloadTemplateExcel = (type: 'armada' | 'pelanggan' | 'driver' | 
         setoran_investor: 300000,
         gaji_driver: 150000
       };
-      // Dynamically add all packages to template
       settings.rentalPackages.forEach(pkg => {
-          carTemplate[pkg] = 600000; // Example price
+          carTemplate[pkg] = 600000;
       });
       headers = [carTemplate];
       break;
@@ -287,6 +269,8 @@ export const mergeData = (existing: any[], imported: any[], key = 'id') => {
     return Array.from(map.values());
 };
 
+// OPTIMIZED IMAGE COMPRESSION (Max 600px, 0.5 quality)
+// Prevents LocalStorage Quota Exceeded and speeds up uploads
 export const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
         const reader = new FileReader();
@@ -296,13 +280,14 @@ export const compressImage = (file: File): Promise<string> => {
             img.src = event.target?.result as string;
             img.onload = () => {
                 const canvas = document.createElement('canvas');
-                const MAX_WIDTH = 800;
+                const MAX_WIDTH = 600; // Reduced from 800
                 const scaleSize = MAX_WIDTH / img.width;
                 canvas.width = MAX_WIDTH;
                 canvas.height = img.height * scaleSize;
                 const ctx = canvas.getContext('2d');
                 ctx?.drawImage(img, 0, 0, canvas.width, canvas.height);
-                resolve(canvas.toDataURL('image/jpeg', 0.7));
+                // Reduced quality from 0.7 to 0.5
+                resolve(canvas.toDataURL('image/jpeg', 0.5));
             };
         };
         reader.onerror = reject;
